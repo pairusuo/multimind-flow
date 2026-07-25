@@ -40,6 +40,21 @@ The current build is not code-signed or notarized. If macOS blocks the first lau
 
 Run the `.exe` installer and follow the prompts.
 
+The Windows installer supports installation for the current user or for all
+users, and lets you choose the installation directory. An all-users install
+requests administrator permission only when it is needed.
+
+Installing a newer version upgrades the registered MultiMind installation
+instead of creating a version-by-version entry. If an all-users installation
+already exists, the upgrade remains all-users and removes a duplicate
+current-user installation. Setup can repair registered legacy installations
+whose old uninstaller is missing or damaged.
+
+To uninstall, close MultiMind Flow and use **Settings > Apps > Installed apps**
+or the uninstall shortcut. Uninstalling removes the application and its
+shortcuts from the selected installation scope. Local settings, site sessions,
+and the memory library are retained so they are not lost accidentally.
+
 The current build is not code-signed. If SmartScreen blocks it, choose **More info -> Run anyway**.
 
 ---
@@ -85,5 +100,16 @@ npm run package:all
 ### Windows
 
 运行 `.exe` 安装包并按提示安装。
+
+Windows 安装程序支持“仅为当前用户安装”和“为所有用户安装”，也支持自定义
+安装目录。只有选择为所有用户安装时才会按需请求管理员权限。
+
+安装新版本时会升级已经注册的 MultiMind 安装，不会按版本新增卸载项。如果
+电脑上已有“为所有用户安装”的版本，升级会继续使用该范围，并清理当前用户
+范围内的重复安装。旧卸载器缺失或损坏时，安装程序会修复已注册的历史安装。
+
+卸载前请关闭 MultiMind Flow，然后通过 **设置 > 应用 > 已安装的应用** 或
+卸载快捷方式操作。卸载会移除对应安装范围内的程序文件和快捷方式；本地设置、
+网站登录状态和记忆库会保留，避免意外丢失。
 
 当前构建未做代码签名。如果被 SmartScreen 拦截，选择 **More info -> Run anyway**。

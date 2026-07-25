@@ -30,6 +30,7 @@ async function createWindow(): Promise<void> {
       preload: path.join(__dirname, 'preload.js'),
     },
   });
+  bindRendererDiagnostics(mainWindow);
 
   const store = await createBrowserStore();
   memoryStore = memoryStore ?? new MemoryStore(path.join(app.getPath('userData'), 'memory.sqlite'));
@@ -46,8 +47,6 @@ async function createWindow(): Promise<void> {
     windowManager = null;
     mainWindow = null;
   });
-  bindRendererDiagnostics(mainWindow);
-
   if (!app.isPackaged) {
     await loadDevRenderer(mainWindow);
   } else {
@@ -71,14 +70,71 @@ function bindRendererDiagnostics(window: BrowserWindow): void {
 }
 
 app.whenReady().then(() => {
-  void createWindow();
+  startWindow();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      void createWindow();
+      startWindow();
     }
   });
 });
+
+function startWindow(): void {
+  void createWindow().catch((error) => {
+    console.error('Failed to start MultiMind Flow:', error);
+    void showStartupFailure(mainWindow, error);
+  });
+}
+
+async function showStartupFailure(window: BrowserWindow | null, error: unknown): Promise<void> {
+  if (!window || window.isDestroyed()) {
+    return;
+  }
+
+  const detail = escapeHtml(error instanceof Error ? error.message : String(error));
+  const html = `<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>MultiMind Flow 启动失败</title>
+    <style>
+      body { margin: 0; background: #f8fafc; color: #0f172a; font: 16px/1.6 system-ui, sans-serif; }
+      main { max-width: 680px; margin: 12vh auto; padding: 32px; }
+      h1 { margin: 0 0 12px; font-size: 24px; }
+      p { margin: 8px 0; color: #475569; }
+      details { margin-top: 24px; padding: 12px 16px; border: 1px solid #cbd5e1; border-radius: 8px; }
+      code { overflow-wrap: anywhere; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>MultiMind Flow 未能正常启动</h1>
+      <p>请关闭应用后重新打开。如果问题持续存在，请重新安装最新版本。</p>
+      <p>MultiMind Flow could not start. Close the app and try again, or reinstall the latest version.</p>
+      <details>
+        <summary>错误详情 / Error details</summary>
+        <code>${detail}</code>
+      </details>
+    </main>
+  </body>
+</html>`;
+
+  try {
+    await window.loadURL(`data:text/html;charset=UTF-8,${encodeURIComponent(html)}`);
+  } catch (loadError) {
+    console.error('Failed to show startup error page:', loadError);
+  }
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
 
 app.on('before-quit', () => {
   windowManager?.dispose();

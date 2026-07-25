@@ -966,12 +966,48 @@ win:
   target:
     - target: nsis
       arch: [x64]
-  signAndEditExecutable: false
+  signAndEditExecutable: true
 
 nsis:
   oneClick: false
+  perMachine: false
+  selectPerMachineByDefault: false
+  allowElevation: true
   allowToChangeInstallationDirectory: true
+  include: build/installer.nsh
+  deleteAppDataOnUninstall: false
+  createDesktopShortcut: always
 ```
+
+**Windows 安装与卸载规则**：
+
+- `win.signAndEditExecutable` 必须保持为 `true`，否则主 EXE 和桌面快捷方式会
+  显示 Electron 默认图标。未配置证书时资源编辑仍会执行，代码签名会自动跳过。
+- 覆盖安装必须重新创建桌面快捷方式，确保历史版本的 Electron 默认图标引用
+  和 Windows 图标缓存能够被新产品图标替换。
+- 交互式安装必须保留“当前用户/所有用户”选择；选择所有用户时按需提权。
+- 自定义安装目录必须由 NSIS 注册并从对应作用域的卸载项移除，禁止硬编码
+  `Program Files` 或当前用户默认目录。
+- 所有用户安装的卸载进程检查必须覆盖所有用户的应用实例，不能只检查发起
+  卸载的当前用户；运行中的实例无法关闭时必须中止卸载，不能留下半卸载状态。
+- `appId` 必须保持 `com.multimind.browser`，产品改名或升级不能创建新的安装
+  身份。同一作用域覆盖安装只保留一个版本；检测到已有所有用户安装时，后续
+  覆盖安装必须继续使用所有用户作用域，并清理当前用户作用域的重复副本。
+- 历史卸载器缺失或返回错误时，新安装器只能在注册目录含可验证的 MultiMind
+  程序文件后执行修复清理；禁止为了“强制覆盖”而递归删除未经验证的路径。
+- 默认卸载只移除程序文件、快捷方式和安装注册项，不删除 `userData` 中的
+  登录状态、设置、记忆库或用户授权目录内容。
+
+**Windows 原生依赖交叉打包规则**：
+
+- 从 macOS 构建 Windows 包时，禁止依赖 electron-builder 的默认 rebuild；
+  默认流程可能把宿主机 Mach-O 版 `better-sqlite3.node` 放进 Windows 包，
+  造成应用创建窗口后在 renderer 加载前白屏。
+- `package:win` 必须先按 Electron 版本准备 Windows x64 PE 原生模块，构建时
+  使用 `npmRebuild=false` 防止被宿主平台覆盖，打包后验证产物中的原生模块
+  是 AMD64 PE，并验证 `app.asar` 包含主进程和 renderer 启动文件。
+- 非 Windows 宿主完成或中断 Windows 打包后，必须在 `finally` 中恢复宿主
+  平台原生模块，不能把本地开发环境留在错误架构。
 
 **签名决策**：当前版本不做代码签名和 Notarization（无 Apple Developer
 账号和 Windows 签名证书），这是有意的 MVP 阶段决策。用户安装时需要手动

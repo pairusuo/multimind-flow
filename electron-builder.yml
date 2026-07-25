@@ -41,10 +41,21 @@ win:
     - target: nsis
       arch:
         - x64
-  signAndEditExecutable: false
+  # Resource editing installs the product icon and version metadata into the
+  # EXE. It remains enabled even when no code-signing certificate is configured.
+  signAndEditExecutable: true
 
 nsis:
   oneClick: false
+  # Keep both supported scopes. In assisted mode, false shows the
+  # "current user / all users" choice instead of forcing a per-user install.
+  perMachine: false
+  selectPerMachineByDefault: false
+  allowElevation: true
   allowToChangeInstallationDirectory: true
+  include: build/installer.nsh
+  uninstallDisplayName: MultiMind Flow
+  deleteAppDataOnUninstall: false
+  createDesktopShortcut: always
   installerIcon: build/icon.ico
   uninstallerIcon: build/icon.ico

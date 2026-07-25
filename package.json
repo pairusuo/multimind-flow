@@ -1,7 +1,7 @@
 {
   "name": "multimind-browser",
   "productName": "MultiMind Flow",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": true,
   "description": "MultiMind Flow desktop workspace",
   "main": "dist/main/index.js",
@@ -15,15 +15,16 @@
     "freeze-main-constants": "node scripts/freeze-main-constants.mjs",
     "build:main": "tsc -p tsconfig.main.json && npm run freeze-main-constants",
     "build": "npm run build:renderer && npm run build:main",
-    "test": "npm run build:main && node scripts/test-shared-logic.mjs && node scripts/test-forward-prompt.mjs && node scripts/test-document-prompt.mjs && node scripts/test-api-conversation.mjs && cross-env ELECTRON_RUN_AS_NODE=1 electron scripts/test-memory-store.mjs",
+    "test": "npm run build:main && node scripts/test-shared-logic.mjs && node scripts/test-forward-prompt.mjs && node scripts/test-document-prompt.mjs && node scripts/test-api-conversation.mjs && node scripts/test-windows-installer-policy.mjs && cross-env ELECTRON_RUN_AS_NODE=1 electron scripts/test-memory-store.mjs",
     "test:api": "npm run build:main && node scripts/test-api-conversation.mjs",
     "test:document": "npm run build:main && node scripts/test-document-prompt.mjs",
     "test:forward": "npm run build:main && node scripts/test-forward-prompt.mjs",
     "test:shared": "npm run build:main && node scripts/test-shared-logic.mjs",
     "test:memory": "npm run build:main && cross-env ELECTRON_RUN_AS_NODE=1 electron scripts/test-memory-store.mjs",
+    "test:installer": "node scripts/test-windows-installer-policy.mjs",
     "clean:package:mac": "node scripts/clean-mac-package.mjs",
     "package:mac": "npm run clean:package:mac && npm run generate-icons && npm run build && electron-builder --mac --universal",
-    "package:win": "cross-env BUILD_TARGET=win npm run generate-icons && cross-env BUILD_TARGET=win npm run build && electron-builder --win --x64",
+    "package:win": "node scripts/package-windows.mjs",
     "package:all": "npm run package:mac && npm run package:win"
   },
   "dependencies": {
