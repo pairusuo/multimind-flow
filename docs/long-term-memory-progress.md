@@ -60,6 +60,35 @@ The current UI should be used to collect stable, user-confirmed conclusions:
 
 It should not be used as a high-weight store for raw AI answer dumps, full intermediate debate logs, temporary task status, or unreviewed automatic summaries.
 
+## Confirmed Artifact Handoff
+
+Discussion output needs an explicit review boundary before it becomes memory. Embedded-site
+discussions and API multi-model discussions should first produce a Markdown discussion artifact,
+then enter the existing confirmation pipeline:
+
+```text
+discussion/task run
+  -> Markdown artifact draft
+  -> user review or revision
+  -> confirmed artifact version
+  -> memory candidate
+  -> confirmed local memory
+```
+
+The artifact layer and memory layer have different responsibilities:
+
+- an artifact is a deliverable from one discussion and may have drafts or superseded versions;
+- memory is stable, reusable background explicitly confirmed for future recall;
+- task status, retries, timeouts, and raw intermediate debate logs stay outside both;
+- provenance should retain the source task, participating cells or API models, creation time, and
+  artifact version without embedding internal orchestration prompts into memory content;
+- creating a new artifact version must not silently rewrite an already imported memory snapshot;
+- importing a confirmed artifact should reuse the same normalization, deduplication, type, scope,
+  disable, restore, and source-missing behavior as file-based Markdown imports.
+
+The first version should support Markdown only. A universal artifact store or automatic indexing of
+HTML, CSV, presentations, audio, and arbitrary attachments is outside the current memory scope.
+
 ## Recall Strategy Boundaries
 
 Current recall is still a conservative local keyword strategy, not semantic memory. It should be treated as an inspectable first version:
@@ -188,6 +217,11 @@ Vector-search PoC should be planned but not rushed into production:
 4. Keep current user instruction priority and disabled-memory exclusion as hard rules.
 5. Promote vector retrieval only after it reduces real false negatives without increasing unrelated recalls.
 
+The project should not adopt a broad external RAG or vector-store abstraction only to prepare for
+possible future providers. The current local SQLite + FTS5 path remains the default until measured
+recall failures justify a small hybrid-retrieval PoC. Any later embedding path must preserve local
+source ownership, disabled-memory exclusion, user confirmation, and inspectable ranking.
+
 ## Progress Log
 
 - 2026-07-14: Confirmed architecture and updated `MultiMind_设计文档_v0.2.md` and `AGENTS.md`.
@@ -269,5 +303,7 @@ Vector-search PoC should be planned but not rushed into production:
 - Next product milestone is Agent memory consumption: retrieve relevant active memories during Agent tasks, pass a concise context block as hidden working context, and make used memories inspectable.
 - Library management additions such as imported-memory editing, source path display/opening, and tag filtering remain useful, but should not outrank the recall loop.
 - Vector retrieval is a later enhancement to recall quality, not a prerequisite for the first recall version.
+- Discussion and API outputs should enter memory through a reviewed Markdown artifact, not by
+  automatically importing raw answers or task logs.
 - Embedded AI website sending should not automatically consume long-term memory by default because website input boxes cannot receive hidden context.
 - Hard-delete memory records is a separate future operation and is not implemented yet.
