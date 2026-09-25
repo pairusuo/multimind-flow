@@ -57,6 +57,10 @@ and the memory library are retained so they are not lost accidentally.
 
 The current build is not code-signed. If SmartScreen blocks it, choose **More info -> Run anyway**.
 
+## Support the Project
+
+MultiMind Flow is open source. If you find it useful, you can support its continued development on [Buy Me a Coffee](https://buymeacoffee.com/dirkchou). Support is optional and does not affect access to the project.
+
 ---
 
 # MultiMind Flow 中文说明
@@ -113,3 +117,7 @@ Windows 安装程序支持“仅为当前用户安装”和“为所有用户安
 网站登录状态和记忆库会保留，避免意外丢失。
 
 当前构建未做代码签名。如果被 SmartScreen 拦截，选择 **More info -> Run anyway**。
+
+## 支持项目
+
+MultiMind Flow 是开源项目。如果你觉得它有帮助，可以通过 [Buy Me a Coffee](https://buymeacoffee.com/dirkchou) 自愿支持项目的持续维护。支持与否不影响项目的使用。
