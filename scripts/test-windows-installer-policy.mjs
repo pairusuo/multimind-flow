@@ -18,6 +18,7 @@ const requiredConfigRules = [
   'include: build/installer.nsh',
   'deleteAppDataOnUninstall: false',
   'createDesktopShortcut: always',
+  'artifactName: MultiMind-Flow-Setup-${version}.${ext}',
 ];
 
 for (const rule of requiredConfigRules) {

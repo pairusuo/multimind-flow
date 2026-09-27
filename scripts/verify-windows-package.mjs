@@ -28,7 +28,7 @@ for (const requiredFile of ['/dist/main/index.js', '/dist/renderer/index.html'])
   }
 }
 
-const installerPrefix = 'MultiMind Flow Setup ';
+const installerPrefix = 'MultiMind-Flow-Setup-';
 const installerExists = fs
   .readdirSync(path.join(root, 'release'))
   .some((name) => name.startsWith(installerPrefix) && name.endsWith('.exe'));

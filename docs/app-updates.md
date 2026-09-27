@@ -12,12 +12,15 @@
 
 发布新版本时：
 
-1. 提升 `package.json` 版本，使用相同版本创建 GitHub Release（例如 `v1.1.2`）。
-2. 运行现有打包命令。
-3. Windows 上传 NSIS `.exe`、对应 `.blockmap` 和 `latest.yml`，文件名与描述文件保持一致。
-4. macOS 当前上传 `.dmg`，应用引导用户打开发布页下载。当前配置未签名，不启用自动替换安装。
-5. 发布为正式版本；草稿和预发布不会作为稳定更新。
-6. 使用上一版本的已安装应用检查下载与安装流程，再确认发布可用。
+1. 同时提升 `package.json` 和 `package-lock.json` 的版本并提交。
+2. 创建并推送同版本标签（例如 `v1.1.3`）。标签会触发 GitHub Actions，在 GitHub 的 macOS 和 Windows 构建机上分别打包，不需要从本地上传安装包。
+3. 工作流完成测试、安全检查和双平台打包后，创建一个 Draft Release，并上传 macOS `.dmg`、Windows NSIS `.exe`、对应 `.blockmap`、`latest.yml` 和 `SHA256SUMS.txt`。
+4. 检查 Draft Release 的版本、说明和下载文件，然后发布为正式版本；草稿和预发布不会作为稳定更新。
+5. 使用上一版本的已安装应用检查下载与安装流程，再确认发布可用。
+
+已经存在的标签可以在 GitHub 的 Actions 页面手动运行“Build desktop release”，输入标签名重新构建。手动运行默认仍生成 Draft；只有明确选择 `published` 才会在构建完成后直接公开。
+
+如需在本地验证安装包，仍可运行现有的 `npm run package:mac` 和 `npm run package:win`，但正式发布不依赖本地产物。
 
 只有安装包、没有 `latest.yml` 的 Release 仍可被发现，但 Windows 会显示下载页入口。现有旧应用没有本次更新功能，需要先手动安装包含此功能的新版本。
 

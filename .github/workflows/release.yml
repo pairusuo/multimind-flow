@@ -1,0 +1,172 @@
+name: Build desktop release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to build, for example v1.1.2
+        required: true
+        type: string
+      release_status:
+        description: Leave as draft for review, or publish after a successful build
+        required: true
+        default: draft
+        type: choice
+        options:
+          - draft
+          - published
+
+concurrency:
+  group: desktop-release-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: '20.20.2'
+  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+
+jobs:
+  quality:
+    name: Test and security checks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          package-manager-cache: false
+      - name: Install dependencies
+        run: npm ci
+      - name: Verify tag matches package version
+        run: node -e "const v=require('./package.json').version,t=process.env.RELEASE_TAG;if(t!=='v'+v)throw new Error('Tag '+t+' does not match package version '+v)"
+      - name: Check high-severity dependency findings
+        run: npm audit --registry=https://registry.npmjs.org --audit-level=high
+      - name: Run automated tests
+        run: npm test
+
+  macos:
+    name: Build macOS Universal DMG
+    needs: quality
+    runs-on: macos-15-intel
+    permissions:
+      contents: read
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          package-manager-cache: false
+      - name: Install dependencies
+        run: npm ci
+      - name: Build macOS package
+        run: npm run package:mac
+      - name: Verify Universal executable
+        run: |
+          architectures="$(lipo -archs 'release/mac-universal/MultiMind Flow.app/Contents/MacOS/MultiMind Flow')"
+          [[ "$architectures" == *x86_64* && "$architectures" == *arm64* ]]
+      - name: Upload macOS release artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: macos-release
+          path: release/*.dmg
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
+
+  windows:
+    name: Build Windows x64 installer
+    needs: quality
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          package-manager-cache: false
+      - name: Install dependencies
+        run: npm ci
+      - name: Build Windows package
+        run: npm run package:win
+      - name: Upload Windows release artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: windows-release
+          path: |
+            release/*.exe
+            release/*.exe.blockmap
+            release/latest.yml
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
+
+  release:
+    name: Create GitHub Release
+    needs:
+      - macos
+      - windows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download macOS artifact
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: macos-release
+          path: release-assets
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: windows-release
+          path: release-assets
+      - name: Verify release files and create checksums
+        shell: bash
+        run: |
+          shopt -s nullglob
+          dmgs=(release-assets/*.dmg)
+          installers=(release-assets/*.exe)
+          blockmaps=(release-assets/*.exe.blockmap)
+          [[ ${#dmgs[@]} -eq 1 ]]
+          [[ ${#installers[@]} -eq 1 ]]
+          [[ ${#blockmaps[@]} -eq 1 ]]
+          [[ -f release-assets/latest.yml ]]
+          (cd release-assets && sha256sum -- *.dmg *.exe *.exe.blockmap latest.yml > SHA256SUMS.txt)
+      - name: Create or update draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            is_draft="$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)"
+            [[ "$is_draft" == "true" ]] || { echo "Refusing to replace assets on an already published release." >&2; exit 1; }
+          else
+            gh release create "$RELEASE_TAG" --verify-tag --draft --generate-notes --title "MultiMind Flow $RELEASE_TAG"
+          fi
+          gh release upload "$RELEASE_TAG" release-assets/* --clobber
+      - name: Publish release when explicitly requested
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.release_status == 'published' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "$RELEASE_TAG" --draft=false --latest
+      - name: Add release link to job summary
+        run: echo "Release assets are available at https://github.com/${GITHUB_REPOSITORY}/releases/tag/${RELEASE_TAG}" >> "$GITHUB_STEP_SUMMARY"
