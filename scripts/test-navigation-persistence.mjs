@@ -3,7 +3,9 @@ import { EventEmitter } from 'node:events';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { WindowManager } = require('../dist/main/windowManager.js');
+const { getAdapterForUrl } = require('../dist/main/adapters/index.js');
 const { PRESET_SITES, repairPersistedSiteUrl } = require('../dist/shared/presetSites.js');
+const { IPC } = require('../dist/shared/types.js');
 const home = PRESET_SITES.find((site) => site.id === 'doubao').url;
 const internal = 'https://www.doubao.com/drive-iframe/drive/home/';
 const chat = 'https://www.doubao.com/chat/example';
@@ -55,4 +57,28 @@ assert.equal(saved.get('cells.cell-0.url'), home);
 assert.deepEqual(restoredTabs['cell-0'], [{ ...tabs[0], url: home }, tabs[1]]);
 assert.deepEqual(saved.get('cells.cell-0.tabs'), restoredTabs['cell-0']);
 assert.equal(manager.getStoredCellUrls()['cell-0'], home, 'Repair remains stable on subsequent startup');
-console.log('Navigation persistence tests passed: iframe isolation, main-frame navigation and saved URL repair.');
+for (const url of ['https://chatgpt.com/', 'https://www.doubao.com/chat/']) {
+  const adapter = getAdapterForUrl(url);
+  assert.equal(adapter?.nativeInjection?.usesNativeTextInsertion, true, `${url} must use native text insertion`);
+  assert.match(adapter.nativeInjection.clickTargetScript('native-input-fixture'), /native-input-fixture/);
+  assert.match(adapter.nativeInjection.acceptedScript, /return true/);
+  assert.ok(adapter.nativeInjection.enterFallbackScript, `${url} must retain native Enter fallback`);
+}
+
+// A page transition must cancel delayed notice replays from the previous page.
+const noticeManager = Object.create(WindowManager.prototype);
+noticeManager.destroyed = false;
+noticeManager.isDestroyed = () => false;
+noticeManager.noticeReplayTimeouts = new Map();
+const noticeEvents = [];
+noticeManager.sendToRenderer = (channel, payload) => noticeEvents.push({ channel, payload });
+noticeManager.showCellNotice('cell-0', 'inject-failed');
+noticeManager.clearCellNotice('cell-0');
+await new Promise((resolve) => setTimeout(resolve, 550));
+assert.deepEqual(
+  noticeEvents.map(({ channel }) => channel),
+  [IPC.SHOW_CELL_NOTICE, IPC.CLEAR_CELL_NOTICE],
+  'Clearing a page notice must prevent its delayed replay from appearing on the next page',
+);
+
+console.log('Navigation and native injection tests passed: iframe isolation, URL repair, page-scoped notices, ChatGPT and Doubao native submit paths.');

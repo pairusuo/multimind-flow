@@ -1,5 +1,5 @@
 import AppSelect from './AppSelect';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getApiModelDisplayName, getApiModelProvider, getApiModelProviderLabel, getApiModelProviderMeta } from '../../shared/apiModelMetadata';
 import type { ApiConversationCellState, CellMode, CellNoticePayload, ConversationEntryMode, LayoutMode } from '../../shared/types';
@@ -15,7 +15,6 @@ import zaiLogo from '../assets/model-logos/z-ai.svg';
 import CellNotice from './CellNotice';
 import { WorkspaceIcon, type WorkspaceIconName } from './WorkspaceIcon';
 
-const shownNoticeKeys = new Set<string>();
 const repeatableNoticeTypes = new Set<CellNoticePayload['type']>(['conversation-truncated', 'source-response-pending']);
 const API_MODEL_LOGOS: Record<string, string> = {
   anthropic: claudeLogo,
@@ -93,6 +92,7 @@ export default function GridCell({
   const apiModelMeta = getApiModelProviderMeta(apiState?.model ?? '');
   const apiModelLogo = API_MODEL_LOGOS[apiModelMeta.id];
   const [notice, setNotice] = useState<CellNoticePayload | null>(null);
+  const shownNoticeTypes = useRef(new Set<CellNoticePayload['type']>());
   const [targetPickerOpen, setTargetPickerOpen] = useState(false);
   const [forwardingTargetId, setForwardingTargetId] = useState<string | null>(null);
   const [forwardStatus, setForwardStatus] = useState<string | null>(null);
@@ -131,7 +131,10 @@ export default function GridCell({
           title: t('gridCell.actions.reload'),
           ariaLabel: t('gridCell.actions.reloadCell'),
           icon: 'reload',
-          onClick: () => window.electronAPI.reload(cellId),
+          onClick: () => {
+            clearPageNotice();
+            window.electronAPI.reload(cellId);
+          },
         },
         {
           id: 'new-tab',
@@ -158,22 +161,36 @@ export default function GridCell({
   ];
 
   useEffect(() => {
-    return window.electronAPI.onCellNotice((payload) => {
+    const removeNoticeListener = window.electronAPI.onCellNotice((payload) => {
       if (payload.cellId !== cellId) {
         return;
       }
 
-      const noticeKey = `${payload.cellId}-${payload.type}`;
-      if (!repeatableNoticeTypes.has(payload.type) && shownNoticeKeys.has(noticeKey)) {
+      if (!repeatableNoticeTypes.has(payload.type) && shownNoticeTypes.current.has(payload.type)) {
         return;
       }
 
       if (!repeatableNoticeTypes.has(payload.type)) {
-        shownNoticeKeys.add(noticeKey);
+        shownNoticeTypes.current.add(payload.type);
       }
       setNotice(payload);
     });
+    const removeClearListener = window.electronAPI.onCellNoticeCleared((payload) => {
+      if (payload.cellId === cellId) {
+        clearPageNotice();
+      }
+    });
+
+    return () => {
+      removeNoticeListener();
+      removeClearListener();
+    };
   }, [cellId]);
+
+  function clearPageNotice() {
+    shownNoticeTypes.current.clear();
+    setNotice(null);
+  }
 
   async function forwardTo(targetCellId: string) {
     setTargetPickerOpen(false);

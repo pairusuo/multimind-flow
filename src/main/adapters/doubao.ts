@@ -356,6 +356,13 @@ export const doubaoAdapter: SiteAdapter = {
       return waitForInputToClear();
     })();
   `,
+  nativeInjection: {
+    prepareScript: () => buildDoubaoNativeInputScript(),
+    usesNativeTextInsertion: true,
+    clickTargetScript: (text: string) => buildDoubaoNativeSendTargetScript(text),
+    acceptedScript: buildDoubaoNativeAcceptedScript(),
+    enterFallbackScript: buildDoubaoNativeInputScript(),
+  },
   readyCheckScript: `
     Boolean(document.querySelector('textarea')
       || document.querySelector('[contenteditable="true"][role="textbox"]')
@@ -392,3 +399,90 @@ export const doubaoAdapter: SiteAdapter = {
     })();
   `,
 };
+
+function buildDoubaoNativeInputScript(): string {
+  return `
+    (() => {
+      const isVisible = (element) => {
+        if (!element) return false;
+        const rect = element.getBoundingClientRect();
+        const style = window.getComputedStyle(element);
+        return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+      };
+      const input = [...document.querySelectorAll('textarea:not([disabled]), [contenteditable="true"][role="textbox"], [contenteditable="true"]')]
+        .filter(isVisible).sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top).at(-1);
+      if (!input) return false;
+      input.focus();
+      if (input instanceof HTMLTextAreaElement) {
+        input.select();
+        input.setSelectionRange(0, input.value.length);
+      } else {
+        const selection = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(input);
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+      }
+      return document.activeElement === input || input.contains(document.activeElement);
+    })();
+  `;
+}
+
+function buildDoubaoNativeSendTargetScript(text: string): string {
+  return `
+    (async () => {
+      const expected = ${JSON.stringify(text)}.replace(/\\s+/g, ' ').trim();
+      const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      const isVisible = (element) => {
+        if (!element) return false;
+        const rect = element.getBoundingClientRect();
+        const style = window.getComputedStyle(element);
+        return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+      };
+      for (let attempt = 0; attempt < 50; attempt += 1) {
+        const input = [...document.querySelectorAll('textarea:not([disabled]), [contenteditable="true"][role="textbox"], [contenteditable="true"]')]
+          .filter(isVisible).sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top).at(-1);
+        const current = (input instanceof HTMLTextAreaElement ? input.value : input?.innerText || input?.textContent || '').replace(/\\s+/g, ' ').trim();
+        if (input && current === expected) {
+          const inputRect = input.getBoundingClientRect();
+          const explicit = [...document.querySelectorAll('button[aria-label*="发送"], [role="button"][aria-label*="发送"], button[aria-label*="send" i], [role="button"][aria-label*="send" i], [data-testid*="send" i], [class*="send-button" i], [class*="send-btn" i], [class*="submit" i]')]
+            .find((candidate) => isVisible(candidate) && !candidate.disabled && candidate.getAttribute('aria-disabled') !== 'true');
+          const nearby = [...document.querySelectorAll('button, [role="button"]')]
+            .filter((candidate) => {
+              if (!isVisible(candidate) || candidate.disabled || candidate.getAttribute('aria-disabled') === 'true') return false;
+              const rect = candidate.getBoundingClientRect();
+              return rect.left >= inputRect.left + inputRect.width * 0.65 && rect.top >= inputRect.top - 20 && rect.bottom <= inputRect.bottom + 35;
+            })
+            .sort((a, b) => b.getBoundingClientRect().right - a.getBoundingClientRect().right)[0];
+          const button = explicit || nearby;
+          if (button) {
+            const rect = button.getBoundingClientRect();
+            return { x: Math.round(rect.left + rect.width / 2), y: Math.round(rect.top + rect.height / 2) };
+          }
+        }
+        await delay(100);
+      }
+      return null;
+    })();
+  `;
+}
+
+function buildDoubaoNativeAcceptedScript(): string {
+  return `
+    (async () => {
+      const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      for (let attempt = 0; attempt < 80; attempt += 1) {
+        const inputs = [...document.querySelectorAll('textarea:not([disabled]), [contenteditable="true"][role="textbox"], [contenteditable="true"]')];
+        const input = inputs.sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top).at(-1);
+        const text = (input instanceof HTMLTextAreaElement ? input.value : input?.innerText || input?.textContent || '').trim();
+        const generating = [...document.querySelectorAll('button, [role="button"], [aria-label], [title]')].some((candidate) => {
+          const label = [candidate.getAttribute?.('aria-label'), candidate.getAttribute?.('title'), candidate.className?.toString(), candidate.textContent].filter(Boolean).join(' ');
+          return /stop|cancel|停止|暂停|取消|生成中|思考中/i.test(label);
+        });
+        if (!text || generating) return true;
+        await delay(100);
+      }
+      return false;
+    })();
+  `;
+}

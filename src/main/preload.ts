@@ -8,6 +8,7 @@ import {
   CellTabPayload,
   CellFaviconChangedPayload,
   CellFocusedPayload,
+  CellNoticeClearPayload,
   ConversationEntryMode,
   ConversationMessageDeltaPayload,
   ConversationRoundStatusPayload,
@@ -111,6 +112,11 @@ const api: ElectronAPI = {
     const listener = (_event: Electron.IpcRendererEvent, payload: CellNoticePayload) => callback(payload);
     ipcRenderer.on(IPC.SHOW_CELL_NOTICE, listener);
     return () => ipcRenderer.removeListener(IPC.SHOW_CELL_NOTICE, listener);
+  },
+  onCellNoticeCleared: (callback) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: CellNoticeClearPayload) => callback(payload);
+    ipcRenderer.on(IPC.CLEAR_CELL_NOTICE, listener);
+    return () => ipcRenderer.removeListener(IPC.CLEAR_CELL_NOTICE, listener);
   },
   onForwardCompleted: (callback) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: ForwardCompletedPayload) => callback(payload);

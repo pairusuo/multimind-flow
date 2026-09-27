@@ -76,6 +76,7 @@ export const IPC = {
   CELL_FOCUSED: 'cell-focused',
   FORWARD_COMPLETED: 'forward-completed',
   SHOW_CELL_NOTICE: 'show-cell-notice',
+  CLEAR_CELL_NOTICE: 'clear-cell-notice',
   LAYOUT_CHANGED: 'layout-changed',
   CELL_URL_CHANGED: 'cell-url-changed',
   CELL_TITLE_CHANGED: 'cell-title-changed',
@@ -598,6 +599,10 @@ export interface CellNoticePayload {
   messageKey: string;
 }
 
+export interface CellNoticeClearPayload {
+  cellId: string;
+}
+
 export interface SetMaximizedCellPayload {
   cellId: string | null;
 }
@@ -704,6 +709,7 @@ export interface ElectronAPI {
   onCellFocused: (callback: (payload: CellFocusedPayload) => void) => () => void;
   onLayoutChanged: (callback: (payload: LayoutChangedPayload) => void) => () => void;
   onCellNotice: (callback: (payload: CellNoticePayload) => void) => () => void;
+  onCellNoticeCleared: (callback: (payload: CellNoticeClearPayload) => void) => () => void;
   onForwardCompleted: (callback: (payload: ForwardCompletedPayload) => void) => () => void;
   onCellUrlChanged: (callback: (payload: CellUrlChangedPayload) => void) => () => void;
   onCellTitleChanged: (callback: (payload: CellTitleChangedPayload) => void) => () => void;

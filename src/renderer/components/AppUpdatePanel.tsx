@@ -28,7 +28,7 @@ export default function AppUpdatePanel() {
   return <section className="app-update-panel" aria-label={t('updates.title')}>
     <strong>{t('updates.title')}</strong>
     <label className="app-update-preference"><input type="checkbox" checked={state.autoCheck} disabled={savingPreference} onChange={event => void act(event.target.checked ? 'enable-auto-check' : 'disable-auto-check')} />{t('updates.autoCheck')}</label>
-    <span role="status">{t(`updates.${state.status}`, { version: state.version, progress: state.progress ?? 0 })}</span>
+    {state.status !== 'idle' && <span role="status">{t(`updates.${state.status}`, { version: state.version, progress: state.progress ?? 0 })}</span>}
     {error && <span role="alert">{t(`updates.errors.${error}`)}</span>}
     <div className="bot-chat-form-actions">
       {!['checking', 'downloading', 'ready'].includes(state.status) && <button type="button" onClick={() => void act('check')}>{t('updates.check')}</button>}

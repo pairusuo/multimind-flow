@@ -2,6 +2,20 @@
 
 MultiMind Flow is a desktop workspace for discussing with multiple AI assistants and search engines side by side. It supports split-screen cells, a shared input box, per-cell configuration, and manual cross-checking between AI responses.
 
+## Product Preview / 产品预览
+
+### Embedded Official Websites / 内嵌官网
+
+Use multiple official AI websites side by side and send the same prompt from the shared input box.
+
+![MultiMind Flow embedded official websites](public/embedded-official-sites.png)
+
+### Bot Conversations / Bot 会谈
+
+Bring API-connected Bots and local Agents into one conversation for coordinated discussion, review, and summaries.
+
+![MultiMind Flow Bot conversation](public/bot-conversation.png)
+
 ## 使用指南
 
 - [应用更新](docs/app-updates.md) — 检查新版本、下载安装，以及 GitHub Releases 发布要求。

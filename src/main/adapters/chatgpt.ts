@@ -68,6 +68,13 @@ export const chatgptAdapter: SiteAdapter = {
       return waitForInputToClear();
     })();
   `,
+  nativeInjection: {
+    prepareScript: () => buildChatGptNativeInputScript(),
+    usesNativeTextInsertion: true,
+    clickTargetScript: (text: string) => buildChatGptNativeSendTargetScript(text),
+    acceptedScript: buildChatGptNativeAcceptedScript(),
+    enterFallbackScript: buildChatGptNativeInputScript(),
+  },
   readyCheckScript: `
     Boolean(document.querySelector('#prompt-textarea[contenteditable="true"]')
       || document.querySelector('textarea#prompt-textarea'));
@@ -114,6 +121,79 @@ export const chatgptAdapter: SiteAdapter = {
     })();
   `,
 };
+
+function buildChatGptNativeInputScript(): string {
+  return `
+    (() => {
+      const isVisible = (element) => {
+        if (!element) return false;
+        const rect = element.getBoundingClientRect();
+        const style = window.getComputedStyle(element);
+        return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+      };
+      const input = [
+        ...document.querySelectorAll('#prompt-textarea[contenteditable="true"], textarea#prompt-textarea, [data-testid="composer-text-input"][contenteditable="true"]')
+      ].filter(isVisible).at(-1);
+      if (!input) return false;
+      input.focus();
+      if (input instanceof HTMLTextAreaElement) {
+        input.select();
+        input.setSelectionRange(0, input.value.length);
+      } else {
+        const selection = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(input);
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+      }
+      return document.activeElement === input || input.contains(document.activeElement);
+    })();
+  `;
+}
+
+function buildChatGptNativeSendTargetScript(text: string): string {
+  return `
+    (async () => {
+      const expected = ${JSON.stringify(text)}.replace(/\\s+/g, ' ').trim();
+      const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      const isVisible = (element) => {
+        if (!element) return false;
+        const rect = element.getBoundingClientRect();
+        const style = window.getComputedStyle(element);
+        return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+      };
+      for (let attempt = 0; attempt < 50; attempt += 1) {
+        const input = [...document.querySelectorAll('#prompt-textarea[contenteditable="true"], textarea#prompt-textarea, [data-testid="composer-text-input"][contenteditable="true"]')]
+          .filter(isVisible).at(-1);
+        const current = (input instanceof HTMLTextAreaElement ? input.value : input?.innerText || input?.textContent || '').replace(/\\s+/g, ' ').trim();
+        const button = [...document.querySelectorAll('button[data-testid="send-button"], button[aria-label="Send prompt"], button[aria-label*="发送"], button[aria-label*="send" i]')]
+          .find((candidate) => isVisible(candidate) && !candidate.disabled && candidate.getAttribute('aria-disabled') !== 'true');
+        if (input && button && current === expected) {
+          const rect = button.getBoundingClientRect();
+          return { x: Math.round(rect.left + rect.width / 2), y: Math.round(rect.top + rect.height / 2) };
+        }
+        await delay(100);
+      }
+      return null;
+    })();
+  `;
+}
+
+function buildChatGptNativeAcceptedScript(): string {
+  return `
+    (async () => {
+      const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      for (let attempt = 0; attempt < 80; attempt += 1) {
+        const input = document.querySelector('#prompt-textarea[contenteditable="true"], textarea#prompt-textarea, [data-testid="composer-text-input"][contenteditable="true"]');
+        const text = (input instanceof HTMLTextAreaElement ? input.value : input?.innerText || input?.textContent || '').trim();
+        const generating = document.querySelector('button[data-testid="stop-button"], button[aria-label*="Stop"], button[aria-label*="停止"]');
+        if (!text || generating) return true;
+        await delay(100);
+      }
+      return false;
+    })();
+  `;
+}
 
 function buildChatGPTConversationScript(): string {
   return `

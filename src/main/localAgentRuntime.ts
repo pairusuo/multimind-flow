@@ -59,6 +59,20 @@ async function command(executable: string, args: string[], systemNode = false) {
     : { file: executable, args, env };
 }
 
+function parseStatusJson(output: string): Record<string, unknown> | undefined {
+  for (const line of output.split(/\r?\n/).reverse()) {
+    const candidate = line.trim();
+    if (!candidate.startsWith('{') || !candidate.endsWith('}')) continue;
+    try {
+      const parsed: unknown = JSON.parse(candidate);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch { /* Diagnostic output is not part of the status response. */ }
+  }
+  return undefined;
+}
+
 export async function detectLocalAgent(agent: LocalAgentId, executable?: string): Promise<LocalAgentStatus> {
   let resolved: string;
   try { resolved = await resolveAgentExecutable(agent, executable); } catch {
@@ -85,14 +99,14 @@ export async function detectLocalAgent(agent: LocalAgentId, executable?: string)
   const supportsAuthCheck = agent === 'codex' || agent === 'claude' || agent === 'qodercn';
   const auth = supportsAuthCheck ? await probe(agent === 'codex' ? ['login', 'status'] : agent === 'qodercn' ? ['status', '-o', 'json'] : ['auth', 'status']) : { ok: false, output: '' };
   if (agent === 'qodercn') {
-    let loggedIn: boolean | undefined;
-    try { const value = JSON.parse(auth.output).logged_in; if (typeof value === 'boolean') loggedIn = value; } catch { /* No conclusive status. */ }
+    const value = parseStatusJson(auth.output)?.logged_in;
+    const loggedIn = typeof value === 'boolean' ? value : undefined;
     return { installed: true, executable: resolved, usable: true, authChecked: auth.ok && loggedIn !== undefined,
       authenticated: auth.ok && loggedIn === true, authMethod: 'unknown' };
   }
   let explicitlyLoggedOut = /not logged in/i.test(auth.output);
   if (agent === 'claude') {
-    try { explicitlyLoggedOut = JSON.parse(auth.output).loggedIn === false; } catch { /* Unknown status stays unknown. */ }
+    explicitlyLoggedOut = parseStatusJson(auth.output)?.loggedIn === false;
   }
   const authChecked = supportsAuthCheck && (auth.ok || explicitlyLoggedOut);
   return { installed: true, executable: resolved, usable: true, authChecked, authenticated: auth.ok && !explicitlyLoggedOut,

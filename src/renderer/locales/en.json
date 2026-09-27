@@ -624,7 +624,6 @@
   "updates": {
     "title": "App updates",
     "autoCheck": "Check for updates at startup",
-    "idle": "Check for a new version at any time.",
     "checking": "Checking…",
     "current": "You’re up to date.",
     "available": "Version {{version}} is available.",

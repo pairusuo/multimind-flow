@@ -170,7 +170,7 @@ function configureAppIdentity(): void {
   const dockIconPath = path.join(__dirname, '../../build/icon.png');
   const dockIcon = nativeImage.createFromPath(dockIconPath);
   if (!dockIcon.isEmpty()) {
-    app.dock.setIcon(dockIcon);
+    app.dock?.setIcon(dockIcon);
   }
 }
 

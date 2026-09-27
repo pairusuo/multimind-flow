@@ -89,6 +89,7 @@ export class WindowManager {
   private attachedViews: Set<string> = new Set();
   private cellStates: Map<string, CellState> = new Map();
   private loadTimeouts: Map<string, ReturnType<typeof setTimeout>> = new Map();
+  private noticeReplayTimeouts: Map<string, Set<ReturnType<typeof setTimeout>>> = new Map();
   private layoutMode: LayoutMode;
   private cellUrls: Record<string, string>;
   private cellModes: Record<string, CellMode>;
@@ -293,6 +294,7 @@ export class WindowManager {
       return this.getBrowserState();
     }
 
+    this.clearCellNotice(cellId);
     const url = normalizeUrl(rawUrl);
     if (url) {
       this.pendingEmptyTabLoads.delete(cellId);
@@ -322,6 +324,7 @@ export class WindowManager {
 
     const view = this.views.get(cellId);
     if (view && !view.webContents.isDestroyed() && view.webContents.canGoBack()) {
+      this.clearCellNotice(cellId);
       view.webContents.goBack();
     }
   }
@@ -333,6 +336,7 @@ export class WindowManager {
 
     const view = this.views.get(cellId);
     if (view && !view.webContents.isDestroyed() && view.webContents.canGoForward()) {
+      this.clearCellNotice(cellId);
       view.webContents.goForward();
     }
   }
@@ -344,6 +348,7 @@ export class WindowManager {
 
     const view = this.views.get(cellId);
     if (view && !view.webContents.isDestroyed()) {
+      this.clearCellNotice(cellId);
       view.webContents.reload();
     }
   }
@@ -432,6 +437,7 @@ export class WindowManager {
     LAYOUT_CELLS[this.layoutMode].forEach((cellId) => {
       const currentUrl = this.cellUrls[cellId];
       if (!currentUrl?.trim()) {
+        this.clearCellNotice(cellId);
         this.resetTimeline(cellId);
         return;
       }
@@ -1416,6 +1422,10 @@ export class WindowManager {
     this.destroyed = true;
     this.loadTimeouts.forEach((timeout) => clearTimeout(timeout));
     this.loadTimeouts.clear();
+    this.noticeReplayTimeouts.forEach((timeouts) => {
+      timeouts.forEach((timeout) => clearTimeout(timeout));
+    });
+    this.noticeReplayTimeouts.clear();
 
     this.views.forEach((view) => {
       if (!view.webContents.isDestroyed()) {
@@ -1959,11 +1969,30 @@ export class WindowManager {
     };
 
     this.sendToRenderer(IPC.SHOW_CELL_NOTICE, payload);
-    setTimeout(() => {
+    const replayTimeout = setTimeout(() => {
+      const cellTimeouts = this.noticeReplayTimeouts.get(cellId);
+      cellTimeouts?.delete(replayTimeout);
+      if (cellTimeouts?.size === 0) {
+        this.noticeReplayTimeouts.delete(cellId);
+      }
       if (!this.isDestroyed()) {
         this.sendToRenderer(IPC.SHOW_CELL_NOTICE, payload);
       }
     }, NOTICE_REPLAY_DELAY_MS);
+    const cellTimeouts = this.noticeReplayTimeouts.get(cellId) ?? new Set();
+    cellTimeouts.add(replayTimeout);
+    this.noticeReplayTimeouts.set(cellId, cellTimeouts);
+  }
+
+  private clearCellNotice(cellId: string): void {
+    if (this.isDestroyed()) {
+      return;
+    }
+
+    const timeouts = this.noticeReplayTimeouts.get(cellId);
+    timeouts?.forEach((timeout) => clearTimeout(timeout));
+    this.noticeReplayTimeouts.delete(cellId);
+    this.sendToRenderer(IPC.CLEAR_CELL_NOTICE, { cellId });
   }
 
   private getStoredLayoutMode(): LayoutMode {

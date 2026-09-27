@@ -624,7 +624,6 @@
   "updates": {
     "title": "应用更新",
     "autoCheck": "启动时自动检查新版本",
-    "idle": "可手动检查新版本。",
     "checking": "正在检查…",
     "current": "已是最新版本。",
     "available": "新版本 {{version}} 可用。",
