@@ -9,6 +9,10 @@ directories:
 files:
   - dist/**
   - package.json
+  # better-sqlite3 ships a native test fixture that the application never loads.
+  # Excluding it prevents Electron's Universal merger from treating it as an
+  # application binary that must differ between x64 and arm64 builds.
+  - "!node_modules/better-sqlite3/build/Release/test_extension.node"
 extraResources:
   - from: build/icon.ico
     to: icon.ico

@@ -85,7 +85,7 @@ jobs:
           path: release/*.dmg
           if-no-files-found: error
           compression-level: 0
-          retention-days: 7
+          retention-days: 1
 
   windows:
     name: Build Windows x64 installer
@@ -118,7 +118,7 @@ jobs:
             release/latest.yml
           if-no-files-found: error
           compression-level: 0
-          retention-days: 7
+          retention-days: 1
 
   release:
     name: Create GitHub Release

@@ -3,21 +3,23 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-const electronBuilderCommand =
-  process.platform === 'win32'
-    ? path.join(root, 'node_modules', '.bin', 'electron-builder.cmd')
-    : path.join(root, 'node_modules', '.bin', 'electron-builder');
+const npmCliPath = process.env.npm_execpath;
+const electronBuilderCliPath = path.join(root, 'node_modules', 'electron-builder', 'cli.js');
 const buildEnvironment = { ...process.env, BUILD_TARGET: 'win' };
 let exitCode = 0;
 
+if (!npmCliPath) {
+  console.error('npm_execpath is unavailable; run this command through npm.');
+  process.exit(1);
+}
+
 try {
-  run(npmCommand, ['run', 'generate-icons'], buildEnvironment);
-  run(npmCommand, ['run', 'build'], buildEnvironment);
+  run(process.execPath, [npmCliPath, 'run', 'generate-icons'], buildEnvironment);
+  run(process.execPath, [npmCliPath, 'run', 'build'], buildEnvironment);
   run(process.execPath, ['scripts/prepare-windows-native.mjs'], buildEnvironment);
   run(
-    electronBuilderCommand,
-    ['--win', '--x64', '--config.npmRebuild=false'],
+    process.execPath,
+    [electronBuilderCliPath, '--win', '--x64', '--config.npmRebuild=false', '--publish', 'never'],
     buildEnvironment,
   );
   run(process.execPath, ['scripts/verify-windows-package.mjs'], buildEnvironment);
@@ -26,7 +28,7 @@ try {
   exitCode = 1;
 } finally {
   if (process.platform !== 'win32') {
-    const restore = spawnSync(npmCommand, ['run', 'rebuild:native'], {
+    const restore = spawnSync(process.execPath, [npmCliPath, 'run', 'rebuild:native'], {
       cwd: root,
       env: process.env,
       stdio: 'inherit',

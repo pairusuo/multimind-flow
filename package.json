@@ -24,7 +24,7 @@
     "test:memory": "npm run build:main && cross-env ELECTRON_RUN_AS_NODE=1 electron scripts/test-memory-store.mjs",
     "test:installer": "node scripts/test-windows-installer-policy.mjs",
     "clean:package:mac": "node scripts/clean-mac-package.mjs",
-    "package:mac": "npm run clean:package:mac && npm run generate-icons && npm run build && electron-builder --mac --universal",
+    "package:mac": "npm run clean:package:mac && npm run generate-icons && npm run build && electron-builder --mac --universal --publish never",
     "package:win": "node scripts/package-windows.mjs",
     "package:all": "npm run package:mac && npm run package:win",
     "test:conversation-ui": "node scripts/test-conversation-view.mjs",

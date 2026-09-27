@@ -7,6 +7,8 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const builderConfig = fs.readFileSync(path.join(root, 'electron-builder.yml'), 'utf8');
 const installerScript = fs.readFileSync(path.join(root, 'build', 'installer.nsh'), 'utf8');
 const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+const nativeRebuildScript = fs.readFileSync(path.join(root, 'scripts', 'rebuild-native.mjs'), 'utf8');
+const windowsPackageScript = fs.readFileSync(path.join(root, 'scripts', 'package-windows.mjs'), 'utf8');
 
 const requiredConfigRules = [
   'appId: com.multimind.browser',
@@ -47,5 +49,13 @@ assert.equal(
   'node scripts/package-windows.mjs',
   'Windows packaging must prepare and verify the platform-specific native module.',
 );
+
+for (const [name, source] of [
+  ['native rebuild', nativeRebuildScript],
+  ['Windows packaging', windowsPackageScript],
+]) {
+  assert.ok(source.includes('process.env.npm_execpath'), `${name} must invoke npm through its JavaScript entry point.`);
+  assert.ok(!source.includes('npm.cmd'), `${name} must not spawn npm.cmd directly on current Node.js versions.`);
+}
 
 console.log('Windows installer policy test passed.');
