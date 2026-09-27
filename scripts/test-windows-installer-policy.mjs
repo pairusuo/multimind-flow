@@ -10,6 +10,10 @@ const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 
 const nativeRebuildScript = fs.readFileSync(path.join(root, 'scripts', 'rebuild-native.mjs'), 'utf8');
 const windowsNativePreparationScript = fs.readFileSync(path.join(root, 'scripts', 'prepare-windows-native.mjs'), 'utf8');
 const windowsPackageScript = fs.readFileSync(path.join(root, 'scripts', 'package-windows.mjs'), 'utf8');
+const windowsPackageVerificationScript = fs.readFileSync(
+  path.join(root, 'scripts', 'verify-windows-package.mjs'),
+  'utf8',
+);
 const iconGenerationScript = fs.readFileSync(path.join(root, 'scripts', 'generate-icons.mjs'), 'utf8');
 
 const requiredConfigRules = [
@@ -64,6 +68,11 @@ for (const [name, source] of [
 assert.ok(
   iconGenerationScript.includes("if (process.platform !== 'darwin') return;"),
   'Windows icon generation must not invoke the macOS-only sips command.',
+);
+
+assert.ok(
+  windowsPackageVerificationScript.includes("replaceAll('\\\\', '/')"),
+  'Windows package verification must normalize ASAR paths before checking required files.',
 );
 
 console.log('Windows installer policy test passed.');

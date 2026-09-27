@@ -21,7 +21,7 @@ const nativeModulePath = path.join(
 assertWindowsX64Pe(nativeModulePath, 'Packaged better-sqlite3 module');
 
 const asarPath = path.join(resourcesDir, 'app.asar');
-const packagedFiles = new Set(listPackage(asarPath));
+const packagedFiles = new Set(listPackage(asarPath).map((file) => file.replaceAll('\\', '/')));
 for (const requiredFile of ['/dist/main/index.js', '/dist/renderer/index.html']) {
   if (!packagedFiles.has(requiredFile)) {
     throw new Error(`Windows app.asar is missing required startup file: ${requiredFile}`);
