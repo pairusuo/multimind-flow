@@ -20,6 +20,7 @@ const workflowRules = [
   'npm run package:win',
   'gh release create',
   'gh release upload',
+  'GH_REPO: ${{ github.repository }}',
   '--verify-tag',
   'SHA256SUMS.txt',
   'retention-days: 1',
