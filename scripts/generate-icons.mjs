@@ -72,6 +72,8 @@ function iconFileNameForSize(size) {
 }
 
 function normalizePng(filePath) {
+  if (process.platform !== 'darwin') return;
+
   const normalizedPath = `${filePath}.normalized.png`;
   execFileSync('sips', ['-s', 'format', 'png', filePath, '--out', normalizedPath], {
     stdio: 'ignore',

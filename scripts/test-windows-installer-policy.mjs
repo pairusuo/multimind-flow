@@ -9,6 +9,7 @@ const installerScript = fs.readFileSync(path.join(root, 'build', 'installer.nsh'
 const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 const nativeRebuildScript = fs.readFileSync(path.join(root, 'scripts', 'rebuild-native.mjs'), 'utf8');
 const windowsPackageScript = fs.readFileSync(path.join(root, 'scripts', 'package-windows.mjs'), 'utf8');
+const iconGenerationScript = fs.readFileSync(path.join(root, 'scripts', 'generate-icons.mjs'), 'utf8');
 
 const requiredConfigRules = [
   'appId: com.multimind.browser',
@@ -57,5 +58,10 @@ for (const [name, source] of [
   assert.ok(source.includes('process.env.npm_execpath'), `${name} must invoke npm through its JavaScript entry point.`);
   assert.ok(!source.includes('npm.cmd'), `${name} must not spawn npm.cmd directly on current Node.js versions.`);
 }
+
+assert.ok(
+  iconGenerationScript.includes("if (process.platform !== 'darwin') return;"),
+  'Windows icon generation must not invoke the macOS-only sips command.',
+);
 
 console.log('Windows installer policy test passed.');
