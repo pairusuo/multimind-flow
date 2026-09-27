@@ -1,8 +1,11 @@
+import AppSelect from './AppSelect';
+import AppUpdatePanel from './AppUpdatePanel';
 import { FormEvent, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { findPresetSiteByUrl, inferModeFromUrl, PRESET_SITES } from '../../shared/presetSites';
 import { getRiskySiteReasonKey } from '../../shared/riskySites';
-import { ApiConversationConfig, AppLanguage, CellMode, ConversationEntryMode, LAYOUT_CELLS, LayoutMode, ThemeMode } from '../../shared/types';
+import { AppLanguage, CellMode, ConversationEntryMode, LAYOUT_CELLS, LayoutMode, ThemeMode } from '../../shared/types';
+import { LayoutIcon, WorkspaceIcon } from './WorkspaceIcon';
 
 interface CellConfigPanelProps {
   cellUrls: Record<string, string>;
@@ -10,7 +13,6 @@ interface CellConfigPanelProps {
   searchUrlTemplates: Record<string, string>;
   language: AppLanguage;
   conversationEntryMode: ConversationEntryMode;
-  apiConfig: ApiConversationConfig;
   forwardControlsEnabled: boolean;
   layoutMode: LayoutMode;
   themeMode: ThemeMode;
@@ -21,7 +23,6 @@ interface CellConfigPanelProps {
   onForwardControlsEnabledChange: (enabled: boolean) => void;
   onThemeModeChange: (mode: ThemeMode) => void;
   onOpenMemory: () => void;
-  onSaveApiConfig: (payload: { baseUrl: string; apiKey?: string; cellModels?: Record<string, string> }) => void;
   onSave: (
     nextUrls: Record<string, string>,
     nextModes: Record<string, CellMode>,
@@ -35,7 +36,6 @@ export default function CellConfigPanel({
   searchUrlTemplates,
   language,
   conversationEntryMode,
-  apiConfig,
   forwardControlsEnabled,
   layoutMode,
   themeMode,
@@ -46,7 +46,6 @@ export default function CellConfigPanel({
   onForwardControlsEnabledChange,
   onThemeModeChange,
   onOpenMemory,
-  onSaveApiConfig,
   onSave,
 }: CellConfigPanelProps) {
   const { t } = useTranslation();
@@ -56,8 +55,6 @@ export default function CellConfigPanel({
   const [draftSearchTemplates, setDraftSearchTemplates] = useState<Record<string, string>>(() => ({
     ...searchUrlTemplates,
   }));
-  const [draftApiBaseUrl, setDraftApiBaseUrl] = useState(apiConfig.baseUrl);
-  const [draftApiKey, setDraftApiKey] = useState('');
   const [appVersion, setAppVersion] = useState('');
 
   useEffect(() => {
@@ -108,25 +105,26 @@ export default function CellConfigPanel({
     return findPresetSiteByUrl(draftUrls[cellId] ?? '')?.id ?? 'custom';
   }
 
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    onSaveApiConfig({
-      baseUrl: draftApiBaseUrl,
-      apiKey: draftApiKey,
-    });
     onSave(draftUrls, draftModes, draftSearchTemplates);
   }
 
   return (
     <div className="modal-backdrop">
-      <form className="cell-config-panel" aria-label={t('cellConfig.aria.panel')} onSubmit={handleSubmit}>
+      <form className="cell-config-panel" data-language={language} aria-label={t('cellConfig.aria.panel')} onSubmit={handleSubmit}>
         <header className="panel-header">
-          <h1>{t('cellConfig.title')}</h1>
+          <div className="settings-heading">
+            <span className="settings-heading-icon"><WorkspaceIcon name="settings" /></span>
+            <div><h1>{t('cellConfig.title')}</h1><p>{t('settings.description')}</p></div>
+          </div>
           <button type="button" aria-label={t('cellConfig.actions.close')} onClick={onClose}>
-            ×
+            <WorkspaceIcon name="close" />
           </button>
         </header>
         <section className="settings-section" aria-label={t('settings.title')}>
+          <h2 className="settings-group-title"><LayoutIcon mode={layoutMode} />{t('settings.groups.workspace')}</h2>
           <span className="settings-section-label">{t('settings.layout.label')}</span>
           <div className="settings-segmented-control settings-layout-control" role="radiogroup" aria-label={t('settings.layout.label')}>
             {LAYOUT_OPTIONS.map((option) => (
@@ -138,10 +136,12 @@ export default function CellConfigPanel({
                   checked={layoutMode === option.mode}
                   onChange={() => onLayoutChange(option.mode)}
                 />
-                <span>{option.label}</span>
+                <LayoutIcon mode={option.mode} />
+                <span className="sr-only">{t(option.titleKey)}</span>
               </label>
             ))}
           </div>
+          <h2 className="settings-group-title"><WorkspaceIcon name="appearance" />{t('settings.groups.appearance')}</h2>
           <span className="settings-section-label">{t('settings.theme.label')}</span>
           <div className="settings-segmented-control settings-theme-control" role="radiogroup" aria-label={t('settings.theme.label')}>
             {(['system', 'light', 'dark'] as const).map((option) => (
@@ -153,6 +153,7 @@ export default function CellConfigPanel({
                   checked={themeMode === option}
                   onChange={() => onThemeModeChange(option)}
                 />
+                <WorkspaceIcon name={option === 'light' ? 'sun' : option === 'dark' ? 'moon' : 'system'} />
                 <span>{t(`settings.theme.options.${option}`)}</span>
               </label>
             ))}
@@ -172,6 +173,7 @@ export default function CellConfigPanel({
               </label>
             ))}
           </div>
+          <h2 className="settings-group-title"><WorkspaceIcon name="chat" />{t('settings.groups.discussion')}</h2>
           <span className="settings-section-label">{t('settings.conversationEntry.label')}</span>
           <div className="settings-segmented-control settings-entry-control" role="radiogroup" aria-label={t('settings.conversationEntry.label')}>
             {(['embedded', 'api'] as const).map((option) => (
@@ -187,30 +189,9 @@ export default function CellConfigPanel({
               </label>
             ))}
           </div>
-          {conversationEntryMode === 'api' && (
-            <>
-              <span className="settings-section-label">{t('settings.apiConversation.baseUrl')}</span>
-              <input
-                className="settings-text-input"
-                value={draftApiBaseUrl}
-                onChange={(event) => setDraftApiBaseUrl(event.target.value)}
-                placeholder="https://openrouter.ai/api/v1"
-              />
-              <span className="settings-section-label">{t('settings.apiConversation.apiKey')}</span>
-              <input
-                className="settings-text-input"
-                type="password"
-                value={draftApiKey}
-                onChange={(event) => setDraftApiKey(event.target.value)}
-                placeholder={apiConfig.apiKeyConfigured
-                  ? t('settings.apiConversation.apiKeyConfigured')
-                  : t('settings.apiConversation.apiKeyPlaceholder')}
-              />
-            </>
-          )}
           <span className="settings-section-label">{t('settings.memory.label')}</span>
           <button type="button" className="settings-memory-button" onClick={onOpenMemory}>
-            <MemoryIcon />
+            <WorkspaceIcon name="memory" />
             <span>{t('settings.memory.open')}</span>
           </button>
           <span className="settings-section-label">{t('settings.forward.toggle')}</span>
@@ -226,13 +207,10 @@ export default function CellConfigPanel({
             </label>
             <span className="settings-forward-hint">{t('settings.forward.hint')}</span>
           </div>
-          <span className="settings-section-label">{t('settings.version.label')}</span>
-          <span className="app-version">
-            {appVersion ? t('settings.version.value', { version: appVersion }) : t('settings.version.loading')}
-          </span>
         </section>
         {conversationEntryMode !== 'api' && (
           <div className="cell-config-list">
+            <h2 className="settings-group-title"><WorkspaceIcon name="globe" />{t('settings.groups.sites')}</h2>
             {visibleCells.map((cellId, index) => (
               <CellConfigRow
                 key={cellId}
@@ -266,7 +244,11 @@ export default function CellConfigPanel({
             ))}
           </div>
         )}
+        <AppUpdatePanel />
         <footer className="panel-actions">
+          <span className="app-version">
+            {appVersion ? t('settings.version.value', { version: appVersion }) : t('settings.version.loading')}
+          </span>
           <button type="button" onClick={onClose}>
             {t('cellConfig.actions.cancel')}
           </button>
@@ -277,24 +259,13 @@ export default function CellConfigPanel({
   );
 }
 
-const LAYOUT_OPTIONS: Array<{ mode: LayoutMode; label: string; titleKey: string }> = [
-  { mode: 'single', label: '1', titleKey: 'settings.layout.options.single' },
-  { mode: 'horizontal', label: '2H', titleKey: 'settings.layout.options.horizontal' },
-  { mode: 'vertical', label: '2V', titleKey: 'settings.layout.options.vertical' },
-  { mode: 'triple', label: '3', titleKey: 'settings.layout.options.triple' },
-  { mode: 'quad', label: '4', titleKey: 'settings.layout.options.quad' },
+const LAYOUT_OPTIONS: Array<{ mode: LayoutMode; titleKey: string }> = [
+  { mode: 'single', titleKey: 'settings.layout.options.single' },
+  { mode: 'horizontal', titleKey: 'settings.layout.options.horizontal' },
+  { mode: 'vertical', titleKey: 'settings.layout.options.vertical' },
+  { mode: 'triple', titleKey: 'settings.layout.options.triple' },
+  { mode: 'quad', titleKey: 'settings.layout.options.quad' },
 ];
-
-function MemoryIcon() {
-  return (
-    <svg className="settings-memory-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path d="M5 4.75h10.5L19 8.25v11H5Z" />
-      <path d="M15.5 4.75v3.5H19" />
-      <path d="M8.25 12h7.5" />
-      <path d="M8.25 15.5h5.5" />
-    </svg>
-  );
-}
 
 interface CellConfigRowProps {
   cellId: string;
@@ -326,32 +297,11 @@ function CellConfigRow({
 
   return (
     <section className="cell-config-row">
-      <label htmlFor={`${cellId}-preset`}>{t('cellConfig.cell.label', { index: index + 1 })}</label>
-      <select
-        id={`${cellId}-preset`}
-        className="preset-select"
+      <span>{t('cellConfig.cell.label', { index: index + 1 })}</span>
+      <AppSelect className="preset-select" hideLabel label={t('cellConfig.cell.label', { index: index + 1 })}
         value={selectedPresetId}
-        onChange={(event) => {
-          const preset = PRESET_SITES.find((site) => site.id === event.target.value);
-          onDraftUrlChange(cellId, preset ? preset.url : '');
-        }}
-      >
-        <optgroup label={t('cellConfig.groups.chat')}>
-          {PRESET_SITES.filter((site) => site.mode === 'chat').map((site) => (
-            <option key={site.id} value={site.id}>
-              {site.name}
-            </option>
-          ))}
-        </optgroup>
-        <optgroup label={t('cellConfig.groups.search')}>
-          {PRESET_SITES.filter((site) => site.mode === 'search').map((site) => (
-            <option key={site.id} value={site.id}>
-              {site.name}
-            </option>
-          ))}
-        </optgroup>
-        <option value="custom">{t('cellConfig.customUrl')}</option>
-      </select>
+        options={[...['chat', 'search'].flatMap(mode => PRESET_SITES.filter(site => site.mode === mode).map(site => ({ value: site.id, label: site.name, group: t(`cellConfig.groups.${mode}`) }))), { value: 'custom', label: t('cellConfig.customUrl') }]}
+        onChange={(value) => { const preset = PRESET_SITES.find(site => site.id === value); onDraftUrlChange(cellId, preset ? preset.url : ''); }} />
       <input
         value={draftUrl}
         onChange={(event) => onDraftUrlChange(cellId, event.target.value)}

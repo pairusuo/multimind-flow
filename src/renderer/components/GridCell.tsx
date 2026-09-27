@@ -1,3 +1,4 @@
+import AppSelect from './AppSelect';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getApiModelDisplayName, getApiModelProvider, getApiModelProviderLabel, getApiModelProviderMeta } from '../../shared/apiModelMetadata';
@@ -12,6 +13,7 @@ import openaiLogo from '../assets/model-logos/openai.svg';
 import qwenLogo from '../assets/model-logos/qwen.svg';
 import zaiLogo from '../assets/model-logos/z-ai.svg';
 import CellNotice from './CellNotice';
+import { WorkspaceIcon, type WorkspaceIconName } from './WorkspaceIcon';
 
 const shownNoticeKeys = new Set<string>();
 const repeatableNoticeTypes = new Set<CellNoticePayload['type']>(['conversation-truncated', 'source-response-pending']);
@@ -31,7 +33,7 @@ interface CellMenuAction {
   id: string;
   title: string;
   ariaLabel: string;
-  icon: string;
+  icon: WorkspaceIconName;
   active?: boolean;
   disabled?: boolean;
   pressed?: boolean;
@@ -101,7 +103,7 @@ export default function GridCell({
         id: 'forward',
         title: t('gridCell.actions.forwardTo'),
         ariaLabel: t('gridCell.actions.forwardTo'),
-        icon: '⇥',
+        icon: 'share',
         expanded: targetPickerOpen,
         disabled: isApiMode && !hasApiContent,
         onClick: () => setTargetPickerOpen((open) => !open),
@@ -111,7 +113,7 @@ export default function GridCell({
     id: 'maximize',
     title: maximized ? t('gridCell.actions.restoreCell') : t('gridCell.actions.maximizeCell'),
     ariaLabel: maximized ? t('gridCell.actions.restoreCell') : t('gridCell.actions.maximizeCell'),
-    icon: maximized ? '▣' : '□',
+    icon: maximized ? 'collapse' : 'expand',
     pressed: maximized,
     onClick: () => onToggleMaximized(cellId),
   };
@@ -120,7 +122,7 @@ export default function GridCell({
         id: 'api-new-discussion',
         title: t('gridCell.api.newDiscussion'),
         ariaLabel: t('gridCell.api.newDiscussion'),
-        icon: '+',
+        icon: 'plus',
         onClick: () => onClearApiCell(cellId),
       }]
     : [
@@ -128,14 +130,14 @@ export default function GridCell({
           id: 'reload',
           title: t('gridCell.actions.reload'),
           ariaLabel: t('gridCell.actions.reloadCell'),
-          icon: '↻',
+          icon: 'reload',
           onClick: () => window.electronAPI.reload(cellId),
         },
         {
           id: 'new-tab',
           title: t('gridCell.actions.newTab'),
           ariaLabel: t('gridCell.actions.newTab'),
-          icon: '+',
+          icon: 'plus',
           onClick: () => onNewTab(cellId),
         },
       ];
@@ -143,7 +145,7 @@ export default function GridCell({
     id: 'sync',
     title: t('gridCell.actions.toggleSync'),
     ariaLabel: t('gridCell.actions.toggleSync'),
-    icon: '✓',
+    icon: 'check',
     active: meta.active,
     pressed: meta.active,
     onClick: () => onToggle(cellId, !meta.active),
@@ -213,7 +215,7 @@ export default function GridCell({
               aria-label={t('gridCell.forward.dismissStatus')}
               onClick={() => setForwardStatus(null)}
             >
-              ×
+              <WorkspaceIcon name="close" />
             </button>
           </div>
         ) : targetPickerOpen ? (
@@ -237,7 +239,7 @@ export default function GridCell({
               aria-label={t('gridCell.forward.cancel')}
               onClick={() => setTargetPickerOpen(false)}
             >
-              ×
+              <WorkspaceIcon name="close" />
             </button>
           </div>
         ) : (
@@ -261,31 +263,13 @@ export default function GridCell({
                   ) : null}
                   <span className="api-model-logo-fallback">{apiModelMeta.badgeText}</span>
                 </span>
-              ) : meta.favicon ? <img src={meta.favicon} alt="" /> : <span className="favicon-placeholder" />}
-              {!isApiMode && meta.mode === 'search' && <span className="cell-mode-badge" title={t('gridCell.mode.search')}>⌕</span>}
+              ) : meta.favicon ? <img src={meta.favicon} alt="" /> : <WorkspaceIcon name="globe" className="cell-site-icon" />}
+              {!isApiMode && meta.mode === 'search' && <span className="cell-mode-badge" title={t('gridCell.mode.search')}><WorkspaceIcon name="search" /></span>}
               {isApiMode ? (
-                <select
-                  className="api-model-select"
-                  value={apiState?.model ?? ''}
-                  aria-label={t('gridCell.api.modelSelect')}
-                  onClick={(event) => event.stopPropagation()}
-                  onChange={(event) => onApiModelChange(cellId, event.target.value)}
-                >
-                  {!apiState?.model && (
-                    <option value="" disabled>
-                      {t('gridCell.api.emptyModel')}
-                    </option>
-                  )}
-                  {getGroupedApiModelOptions(apiState?.model ?? '', apiModels).map((group) => (
-                    <optgroup key={group.provider} label={group.label}>
-                      {group.models.map((model) => (
-                        <option key={model} value={model}>
-                          {getApiModelDisplayName(model)}
-                        </option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
+                <AppSelect className="api-model-select" hideLabel label={t('gridCell.api.modelSelect')}
+                  value={apiState?.model ?? ''} placeholder={t('gridCell.api.emptyModel')}
+                  options={getGroupedApiModelOptions(apiState?.model ?? '', apiModels).flatMap(group => group.models.map(model => ({ value: model, label: getApiModelDisplayName(model), group: group.label })))}
+                  onChange={(value) => onApiModelChange(cellId, value)} />
               ) : (
                 <span>{host}</span>
               )}
@@ -320,7 +304,7 @@ function CellMenu({ label, actions }: { label: string; actions: CellMenuAction[]
             action.onClick();
           }}
         >
-          {action.icon}
+          <WorkspaceIcon name={action.icon} />
         </button>
       ))}
     </div>

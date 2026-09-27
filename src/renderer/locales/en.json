@@ -18,7 +18,7 @@
       "geminiRestricted": "Gemini login restricted"
     },
     "apiMode": {
-      "title": "API Calls"
+      "title": "Bot conversations"
     },
     "layout": {
       "label": "Layout",
@@ -298,6 +298,253 @@
   "riskySites": {
     "geminiGoogleLogin": "This site only supports Google account login. Google restricts login in embedded browsers, so it may not work properly."
   },
+  "botChat": {
+    "group": {
+      "details": "Conversation details",
+      "close": "Close conversation details",
+      "name": "Group name",
+      "avatar": "Group avatar",
+      "save": "Save",
+      "changeAvatar": "Change avatar",
+      "resetAvatar": "Use default",
+      "saveError": "Unable to save. Please try again.",
+      "avatarError": "Choose a PNG, JPEG or WebP image up to 5 MB."
+    },
+    "coordination": {
+      "label": "Coordinator",
+      "off": "Off · Everyone answers",
+      "hint": "Assigns tasks and consolidates results when no recipient is selected. Uses additional model calls.",
+      "planning": "Coordinator is assigning tasks…",
+      "working": "Members are working on assigned tasks…",
+      "summarizing": "Coordinator is preparing the final answer…",
+      "mention": "Choose who answers",
+      "invalidMention": "The @ recipient was not found. Choose a member from the list.",
+      "automatic": "{{name}} will lead the discussion"
+    },
+    "connectionGuide": {
+      "dsh": "DeepSeek Harness: get a DeepSeek API key, install the agent, then open its settings to configure it. Official project: github.com/deepseek-ai/deepseek-harness (developer preview).",
+      "title": "Connection guide: accounts, API keys and billing",
+      "choice": "Already use a local agent? Choose Local agent to reuse its sign-in and configuration. For pay-as-you-go model access, choose Custom API and enter a key from that API platform.",
+      "deepseek": "DeepSeek API: add credit and create an API key at the DeepSeek platform (platform.deepseek.com).",
+      "qwen": "Qwen API: enable model services and create an API key in Alibaba Cloud Model Studio (bailian.console.aliyun.com), with usage-based billing.",
+      "kimi": "Kimi API: add credit and create an API key on the China platform (platform.kimi.com). Its API request URL is {{baseUrl}}.",
+      "kimiCode": "Kimi Code CLI: activate a membership at Kimi Code (kimi.com/code), then install the CLI and sign in through the terminal.",
+      "qoder": "Qoder CN CLI: activate a plan or claim an available trial at Qoder CN (qoder.cn), then install the CLI and sign in through the terminal.",
+      "billing": "Check charges and remaining quota with your provider. Installing an agent does not grant free model usage. Trial quotas and membership benefits depend on your provider account.",
+      "codex": "Codex CLI: install and sign in with ChatGPT, or configure an OpenAI API key. Usage is billed to the selected account or service. Setup: developers.openai.com/codex/auth.",
+      "claude": "Claude Code: install and sign in with an eligible Claude account, or configure a model service. Billing follows the selected account or service. Setup: code.claude.com/docs/en/authentication.",
+      "gemini": "Gemini CLI: install and sign in with Google, or configure a Gemini API key / Vertex AI. Setup: geminicli.com/docs/get-started/authentication/.",
+      "qwenCode": "Qwen Code: an open-source terminal agent from the Qwen team. Install it and configure an API key for Model Studio or another model provider. Setup: qwenlm.github.io/qwen-code-docs/zh/users/configuration/auth/.",
+      "qoderInternational": "Qoder international: its website is qoder.com; Qoder CN is the mainland China edition listed above. Qwen Code is a separate product. This app currently supports Qoder CN CLI.",
+      "glm": "GLM API: enable model services and create an API key on the Zhipu platform (open.bigmodel.cn).",
+      "doubao": "Doubao API: enable model services and create an API key on Volcengine Ark (console.volcengine.com/ark).",
+      "openai": "OpenAI API: set up API billing and create an API key on the OpenAI platform (platform.openai.com).",
+      "openrouter": "OpenRouter API: add credit and create an API key on OpenRouter (openrouter.ai) to use its available models."
+    },
+    "platform": "Platform: {{platform}}",
+    "list": {
+      "empty": "No conversations yet",
+      "untitled": "Untitled conversation",
+      "running": "Generating…",
+      "memberCount": "{{count}} members",
+      "pickOrchestra": "Pick a conversation on the left, or create a new one"
+    },
+    "onboarding": {
+      "needKey": "Configure a service URL and API key before starting API conversations",
+      "openSettings": "Open settings"
+    },
+    "migration": {
+      "title": "Legacy API cell models detected. Create them as bots in one click (duplicate models get a numbered suffix)",
+      "confirm": "Create conversation from existing models",
+      "skip": "Skip, don't ask again"
+    },
+    "round": {
+      "review": "Peer review round",
+      "summary": "Summary"
+    },
+    "transcript": {
+      "empty": "Send the first message to start the discussion"
+    },
+    "quote": {
+      "label": "Quoting {{name}}'s answer",
+      "remove": "Remove quote"
+    },
+    "composer": {
+      "placeholder": "Type a message. Enter to send, Shift+Enter for a new line",
+      "sendToAll": "Send to all {{count}} members",
+      "sendToSelected": "Send to {{names}}",
+      "none": "No member selected",
+      "stop": "Stop round",
+      "review": "Peer review round",
+      "summary": "Generate summary",
+      "send": "Send"
+    },
+    "status": {
+      "streaming": "Generating",
+      "completed": "Completed",
+      "stopped": "Stopped",
+      "failed": "Failed",
+      "interrupted": "Interrupted",
+      "pending": "Waiting…"
+    },
+    "confirm": {
+      "deleteConversation": "Delete this conversation? All messages will be removed (files you saved and memories you imported are not affected)."
+    },
+    "review": {
+      "title": "Start a peer review round",
+      "participants": "{{count}} members participate, producing {{requests}} requests. Members check correctness, omissions, evidence, and disagreements, then stop.",
+      "confirm": "Start review"
+    },
+    "summary": {
+      "title": "Choose the summarizer"
+    },
+    "newConversation": {
+      "title": "New conversation",
+      "titleLabel": "Title (optional)",
+      "titlePlaceholder": "Defaults to a short snippet of your first question",
+      "pickHint": "Choose one Bot for a one-on-one chat, or several Bots for a group discussion"
+    },
+    "bots": {
+      "chooseAvatar": "Choose avatar",
+      "resetAvatar": "Use default avatar",
+      "avatarError": "Choose a PNG, JPG or WebP image under 5 MB.",
+      "title": "Manage bots",
+      "platformHint": "Models are called through {{platform}}; the recommended list does not restrict model IDs you can type",
+      "empty": "No bots yet — create one first",
+      "createTitle": "Create bot",
+      "editTitle": "Edit bot",
+      "name": "Name",
+      "model": "Model",
+      "modelPlaceholder": "Pick from the list or type a model ID",
+      "manualModelHint": "Manually typed model IDs are unverified; availability is confirmed by actual calls",
+      "rolePrompt": "Soul / role and behavior (optional)",
+      "rolePromptPlaceholder": "e.g. You are a solution advisor. Compare feasibility and risks, give your recommendation first, then explain why.",
+      "confirmDelete": "Delete this bot? Member snapshots in past conversations are preserved.",
+      "newInstead": "Switch to create"
+    },
+    "members": {
+      "noAvailable": "No other bots are available. Create a bot to add another member.",
+      "title": "Manage members",
+      "addHint": "Add members"
+    },
+    "actions": {
+      "newConversation": "New conversation",
+      "manageBots": "Manage bots",
+      "manageMembers": "Manage members",
+      "deleteConversation": "Delete conversation",
+      "copy": "Copy",
+      "quote": "Quote",
+      "stopMember": "Stop",
+      "retry": "Retry",
+      "chatAlone": "Chat one-on-one",
+      "edit": "Edit",
+      "delete": "Delete",
+      "save": "Save",
+      "create": "Create",
+      "cancel": "Cancel",
+      "done": "Done",
+      "removeMember": "Remove"
+    },
+    "runtime": {
+      "authHelp": {
+        "unknown": "This Agent needs authentication. Check its type in Manage Bots, follow its sign-in instructions, then retry.",
+        "login": "{{name}} needs authentication. Run this command in a terminal and follow the sign-in prompts:",
+        "interactive": "{{name}} needs authentication. Run this command and choose a sign-in method. If no prompt appears, enter /auth:",
+        "configure": "{{name}} could not authenticate with its model service. Run this command, then check the service API key in settings:",
+        "already": "An existing local login was detected and left unchanged. Try again; if it still fails, run the command above to check your account.",
+        "opened": "Terminal opened. Complete the steps there.",
+        "openFailed": "Could not open sign-in or settings automatically. Open a terminal and run the command above.",
+        "copy": "Copy command",
+        "copied": "Command copied.",
+        "copyFailed": "Could not copy. Please copy the command above manually.",
+        "retry": "When finished, return to this conversation and click Retry below. You do not need to create the Bot again."
+      },
+      "intro": "A bot can use a local Agent and its login, or connect to its own model API. Both types of bots can join the same conversation.",
+      "connection": "Connection",
+      "local": "Local Agent",
+      "api": "Custom API",
+      "legacy": "Existing shared API",
+      "checkFailed": "Check failed",
+      "restartDetection": "Quit and reopen the app, then click Check again to enable newly added agents.",
+      "notChecked": "Not checked",
+      "checking": "Detecting…",
+      "available": "Installed on this computer",
+      "unavailable": "Install more agents",
+      "noneInstalled": "No local agents found. Choose an agent below to install it.",
+      "rerunInstall": "Run installation again",
+      "installTerminalOpened": "Installation terminal opened. Confirm installation finishes in the terminal, then click Check again.",
+      "repair": "Reinstall",
+      "missing": "Not installed",
+      "broken": "Found, unable to start",
+      "installed": "Installed",
+      "install": "One-click install",
+      "copyInstall": "Copy install command",
+      "login": "Sign in via terminal",
+      "refresh": "Check again",
+      "docs": "Installation guide",
+      "configuredLocally": "Uses existing local configuration. For first-time setup, click Open settings to configure a model service.",
+      "configure": "Open settings",
+      "linkError": "Unable to open the link. Please try again.",
+      "installHelp": "Installation help",
+      "installHint": "Click One-click install and follow the terminal prompts, or copy the command below and run it in your terminal. If Node.js is missing, follow the installation guide to set it up first. When finished, click Check again.",
+      "loginReused": "Your existing sign-in is ready to use. You can create the bot.",
+      "setupOpened": "System terminal opened. Complete setup there; click Check again when finished to update the saved results.",
+      "cacheReadError": "Unable to read saved detection results. Restart the app and try again.",
+      "detectError": "Unable to complete detection or save the results. Click Check again to retry.",
+      "copyFailed": "Unable to copy. Select the command manually.",
+      "customModel": "Enter a custom model",
+      "outputLimit": "Maximum output tokens (including reasoning; default 4096)",
+      "errorDetails": "Original error",
+      "errors": {
+        "local-auth": "This agent is not signed in or its login has expired. Open terminal sign-in in Manage Bots, then retry.",
+        "local-timeout": "This round timed out. Any received answer has been kept. You can retry.",
+        "local-failed": "The agent reported a failed turn. Any received answer has been kept. You can retry.",
+        "local-exited": "The agent exited unexpectedly. Any received answer has been kept, but completion could not be confirmed.",
+        "local-incomplete": "Turn completion was not confirmed. Any received answer has been kept. You can retry.",
+        "coordination-failed": "The coordinator could not arrange this task. Send again or @ a member directly.",
+        "local-empty": "The agent finished without returning an answer.",
+        "local-output-limit": "The agent returned too much data. This round was stopped and any received answer has been kept.",
+        "credits": "Insufficient provider balance. Check your balance, or lower the Bot output limit and create a new conversation.",
+        "api-auth": "Authentication failed. Check the API key in Manage Bots and make sure the service address matches the key’s region and plan."
+      },
+      "provider": "Model service",
+      "custom": "Custom compatible service",
+      "apiHint": "The key is encrypted on this device. Content is sent to this service. Template edits apply to newly added members. Changing the address requires a new key.",
+      "optional": "optional",
+      "defaultModel": "Use Agent default model",
+      "auth": {
+        "subscription": "Signed in with local subscription configuration",
+        "api": "Signed in with local API configuration",
+        "unknown": "Login detected; confirm billing in the CLI",
+        "required": "Not signed in. Open a terminal to sign in for the first time.",
+        "unconfirmed": "You can use your existing sign-in. For your first sign-in, click Sign in via terminal."
+      },
+      "unknownSource": "Source not recorded"
+    },
+    "activity": {
+      "connecting": "Connecting…",
+      "waiting": "Waiting for a response…",
+      "thinking": "Thinking…",
+      "searching": "Searching…",
+      "working": "Working…",
+      "answering": "Answering…",
+      "retrying": "Retrying…"
+    },
+    "apiTest": {
+      "button": "Test connection",
+      "testing": "Testing…",
+      "hint": "Sends a short request and may incur a small charge.",
+      "success": "Connected. Your API key and selected model work.",
+      "invalid": "Enter a valid API URL, API key and model.",
+      "auth": "Authentication or access denied. Check this service’s API key and account permissions.",
+      "credits": "Insufficient balance or quota. Check your provider account.",
+      "model": "Model unavailable. Check its name and account access.",
+      "timeout": "Connection timed out. Retry or check the API URL.",
+      "network": "Cannot connect. Check your network and API URL.",
+      "restart": "Restart the app before using connection testing.",
+      "failed": "Test unsuccessful. Check the API URL and model settings, or retry later."
+    }
+  },
   "apiConversation": {
     "errors": {
       "missingKey": "Save an API Key in Settings first",
@@ -312,6 +559,13 @@
     }
   },
   "settings": {
+    "description": "Make your workspace, appearance and discussions your own.",
+    "groups": {
+      "workspace": "Workspace",
+      "appearance": "Appearance & language",
+      "discussion": "Discussion & memory",
+      "sites": "Pane websites"
+    },
     "title": "Settings",
     "layout": {
       "label": "Layout",
@@ -342,7 +596,7 @@
       "label": "Conversation Mode",
       "options": {
         "embedded": "Embedded sites",
-        "api": "API Calls"
+        "api": "Bot conversations"
       }
     },
     "memory": {
@@ -353,7 +607,8 @@
       "baseUrl": "API Base URL",
       "apiKey": "API Key",
       "apiKeyPlaceholder": "Enter API Key",
-      "apiKeyConfigured": "Saved. Leave blank to keep it"
+      "apiKeyConfigured": "Saved. Leave blank to keep it",
+      "addressChanged": "Changing the address affects future requests from all bots. Enter the key for the new service; leaving it blank clears the old credentials. Check that your models are available on the new service."
     },
     "forward": {
       "label": "Forward",
@@ -364,6 +619,26 @@
       "label": "Version",
       "value": "v{{version}}",
       "loading": "Version -"
+    }
+  },
+  "updates": {
+    "title": "App updates",
+    "autoCheck": "Check for updates at startup",
+    "idle": "Check for a new version at any time.",
+    "checking": "Checking…",
+    "current": "You’re up to date.",
+    "available": "Version {{version}} is available.",
+    "downloading": "Downloading {{progress}}%",
+    "ready": "Update downloaded. Restart to install.",
+    "error": "Could not check or download. Please try again.",
+    "check": "Check for updates",
+    "download": "Download update",
+    "releases": "Open download page",
+    "install": "Restart and install",
+    "errors": {
+      "network": "Updates are temporarily unavailable. Try again later.",
+      "busy": "Wait for replies to finish or stop the round before restarting.",
+      "development": "Updates are available in the installed app."
     }
   }
 }

@@ -1,3 +1,4 @@
+import type { LocalAgentId } from './botCatalog';
 import type { LayoutTemplate } from './presetTemplates';
 
 export type LayoutMode = 'single' | 'horizontal' | 'vertical' | 'triple' | 'quad';
@@ -31,7 +32,9 @@ export const LAYOUT_CELLS: Record<LayoutMode, string[]> = {
 
 export const IPC = {
   GET_BROWSER_STATE: 'get-browser-state',
+  APP_UPDATE: 'app-update',
   GET_APP_VERSION: 'get-app-version',
+  OPEN_CONVERSATION_LINK: 'open-conversation-link',
   SEND_TO_ALL: 'send-to-all',
   START_NEW_DISCUSSION: 'start-new-discussion',
   FORWARD_RESPONSE: 'forward-response',
@@ -237,7 +240,10 @@ export interface MemoryRecallContext {
 
 export interface ApiConversationConfig {
   baseUrl: string;
+  /** 推荐模型列表（带品牌筛选，仅用于帮助选择） */
   models: string[];
+  /** 平台返回的完整模型列表；推荐列表不构成可调用白名单 */
+  allModels?: string[];
   cellModels?: Record<string, string>;
   apiKeyConfigured: boolean;
 }
@@ -293,6 +299,251 @@ export interface ExtractedConversationEntry {
   content: string;
   domId?: string;
   order?: number;
+}
+
+// ---------------------------------------------------------------------------
+// API Bot 与群聊会谈（docs/api-bot-group-conversation-proposal.md）
+// ---------------------------------------------------------------------------
+
+export const CONVERSATION_IPC = {
+  GET_LOCAL_AGENT_CACHE: 'conversation-get-local-agent-cache',
+  DETECT_LOCAL_AGENT: 'conversation-detect-local-agent',
+  SETUP_LOCAL_AGENT: 'conversation-setup-local-agent',
+  OPEN_BOT_GUIDE: 'conversation-open-bot-guide',
+  // Bot 管理
+  TEST_BOT_API: 'conversation-test-bot-api',
+  CREATE_BOT: 'conversation-create-bot',
+  UPDATE_BOT: 'conversation-update-bot',
+  DELETE_BOT: 'conversation-delete-bot',
+  LIST_BOTS: 'conversation-list-bots',
+  // 会谈管理
+  CREATE_CONVERSATION: 'conversation-create',
+  UPDATE_CONVERSATION: 'conversation-update',
+  DELETE_CONVERSATION: 'conversation-delete',
+  LIST_CONVERSATIONS: 'conversation-list',
+  GET_CONVERSATION: 'conversation-get',
+  UPDATE_CONVERSATION_MEMBER: 'conversation-update-member',
+  ADD_CONVERSATION_MEMBERS: 'conversation-add-members',
+  REMOVE_CONVERSATION_MEMBER: 'conversation-remove-member',
+  // 消息与轮次
+  SEND_MESSAGE: 'conversation-send-message',
+  STOP_ROUND: 'conversation-stop-round',
+  STOP_MEMBER: 'conversation-stop-member',
+  RETRY_MEMBER: 'conversation-retry-member',
+  REQUEST_REVIEW: 'conversation-request-review',
+  REQUEST_SUMMARY: 'conversation-request-summary',
+  // 流式输出与轮次状态
+  MESSAGE_DELTA: 'conversation-message-delta',
+  ROUND_STATUS: 'conversation-round-status',
+  // 迁移与状态
+  GET_CONVERSATION_STATE: 'conversation-get-state',
+  MIGRATE_FROM_CELLS: 'conversation-migrate-from-cells',
+} as const;
+
+export type BotConnection =
+  | { kind: 'legacy-api' }
+  | { kind: 'api'; baseUrl: string; credentialId?: string; maxOutputTokens?: number }
+  | { kind: 'cli'; agent: LocalAgentId; executable?: string; cwd?: string };
+
+export type LocalAgentSetupResult = { status: 'opened' } | { status: 'authenticated'; agentStatus: LocalAgentStatus };
+
+export interface LocalAgentStatus {
+  installed: boolean;
+  executable?: string;
+  authenticated: boolean;
+  usable?: boolean;
+  authChecked?: boolean;
+  authMethod: 'subscription' | 'api' | 'unknown';
+}
+
+export interface Bot {
+  avatar?: string;
+  connection?: BotConnection;
+  id: string;
+  name: string;
+  model: string;
+  rolePrompt: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface TestBotApiPayload { baseUrl: string; apiKey?: string; model: string; botId?: string; }
+export type TestBotApiResult = { status: 'success' | 'invalid' | 'auth' | 'credits' | 'model' | 'timeout' | 'network' | 'restart' | 'failed'; };
+
+export interface CreateBotPayload {
+  avatar?: string;
+  connection?: BotConnection;
+  apiKey?: string;
+  name: string;
+  model: string;
+  rolePrompt?: string;
+}
+
+export interface UpdateBotPayload {
+  avatar?: string;
+  connection?: BotConnection;
+  apiKey?: string;
+  id: string;
+  name?: string;
+  model?: string;
+  rolePrompt?: string;
+}
+
+/** 会谈成员：创建时保存的 Bot 身份快照（不含 Key）。 */
+export interface ConversationMember {
+  avatar?: string;
+  connection?: BotConnection;
+  botId: string;
+  name: string;
+  model: string;
+  rolePrompt: string;
+}
+
+export interface AddConversationMembersPayload {
+  conversationId: string;
+  botIds: string[];
+}
+
+export interface RemoveConversationMemberPayload {
+  conversationId: string;
+  botId: string;
+}
+
+export interface UpdateConversationMemberPayload {
+  conversationId: string;
+  botId: string;
+  name?: string;
+  rolePrompt?: string;
+}
+
+export interface ConversationSummary {
+  avatar?: string;
+  lastMessage?: { name: string; content: string } | null;
+  coordinatorId?: string | null;
+  id: string;
+  title: string;
+  members: ConversationMember[];
+  lastActivityAt: number;
+  createdAt: number;
+}
+
+export interface Conversation extends ConversationSummary {
+  coordinationPhase?: 'planning' | 'working' | 'summarizing';
+  messages: ConversationMessage[];
+  runningRoundId: string | null;
+}
+
+export interface CreateConversationPayload {
+  title?: string;
+  botIds: string[];
+}
+
+export interface UpdateConversationPayload {
+  avatar?: string;
+  coordinatorId?: string | null;
+  id: string;
+  title?: string;
+}
+
+export type ConversationMessageStatus =
+  | 'streaming'
+  | 'completed'
+  | 'stopped'
+  | 'failed'
+  | 'interrupted';
+
+export type ConversationMessageType = 'normal' | 'review' | 'summary';
+
+export type AgentActivity = 'connecting' | 'waiting' | 'thinking' | 'searching' | 'working' | 'answering' | 'retrying';
+
+export interface ConversationMessage {
+  activity?: AgentActivity;
+  botSnapshotSource?: string;
+  id: string;
+  conversationId: string;
+  roundId: string;
+  /** null = 用户消息 */
+  botId: string | null;
+  botSnapshotName: string;
+  botSnapshotModel: string;
+  role: 'user' | 'assistant';
+  content: string;
+  status: ConversationMessageStatus;
+  messageType: ConversationMessageType;
+  quotedMessageId?: string;
+  createdAt: number;
+  elapsedMs?: number;
+  error?: string;
+}
+
+export type ConversationRoundStatus =
+  | 'running'
+  | 'completed'
+  | 'stopped'
+  | 'failed';
+
+export interface ConversationRoundStatusPayload {
+  /** Ordered message placeholders, published before the first delta. */
+  conversation?: Conversation;
+  conversationId: string;
+  roundId: string | null;
+  status: ConversationRoundStatus;
+  /** 各成员（botId → 状态）快照，用于界面显示本轮进度 */
+  memberStatuses?: Record<string, ConversationMessageStatus>;
+}
+
+export interface ConversationMessageDeltaPayload {
+  activity?: AgentActivity;
+  conversationId: string;
+  roundId: string;
+  messageId: string;
+  botId: string;
+  delta?: string;
+  content: string;
+  done: boolean;
+  status?: ConversationMessageStatus;
+  error?: string;
+  elapsedMs?: number;
+}
+
+export interface SendMessagePayload {
+  conversationId: string;
+  content: string;
+  /** 收件人选择器是最终依据；为空 = 发送给全体当前成员 */
+  botIds?: string[];
+  quotedMessageId?: string;
+}
+
+export interface ConversationTargetPayload {
+  messageId?: string;
+  conversationId: string;
+  roundId?: string;
+  botId?: string;
+}
+
+export interface RequestReviewPayload {
+  conversationId: string;
+  /** 为空 = 全体成员参与互评 */
+  botIds?: string[];
+}
+
+export interface RequestSummaryPayload {
+  conversationId: string;
+  botId: string;
+}
+
+export interface ConversationState {
+  bots: Bot[];
+  conversations: ConversationSummary[];
+  /** 旧格子模型是否已迁移为 Bot / 会谈 */
+  cellsMigrated: boolean;
+  legacyCellModels: Record<string, string>;
+  apiKeyConfigured: boolean;
+}
+
+export interface MigrateFromCellsPayload {
+  /** 用户确认保留的 cellId → 模型映射（含重复模型） */
+  cellModels: Record<string, string>;
 }
 
 export interface ExtractedConversation {
@@ -392,9 +643,25 @@ export interface LayoutChangedPayload {
   layoutMode: LayoutMode;
 }
 
+export interface AppUpdateState {
+  autoCheck: boolean;
+  status: 'idle' | 'checking' | 'current' | 'available' | 'downloading' | 'ready' | 'error';
+  version?: string;
+  progress?: number;
+  canInstall: boolean;
+  error?: 'network' | 'busy' | 'development';
+}
+export type AppUpdateAction = 'state' | 'check' | 'download' | 'install' | 'releases' | 'enable-auto-check' | 'disable-auto-check';
+
 export interface ElectronAPI {
+  appUpdate: (action: AppUpdateAction) => Promise<AppUpdateState>;
+  openBotGuide: (key: import('./botCatalog').BotGuideLink) => Promise<void>;
+  setupLocalAgent: (agent: LocalAgentId, action: 'install' | 'login' | 'docs', executable?: string) => Promise<LocalAgentSetupResult>;
+  getLocalAgentCache: (agent: LocalAgentId, executable?: string) => Promise<Partial<Record<LocalAgentId, LocalAgentStatus>>>;
+  detectLocalAgent: (agent: LocalAgentId, executable?: string, force?: boolean) => Promise<LocalAgentStatus>;
   getBrowserState: () => Promise<BrowserState>;
   getAppVersion: () => Promise<string>;
+  openConversationLink: (url: string) => Promise<void>;
   applyTemplate: (payload: ApplyTemplatePayload) => Promise<BrowserState>;
   sendToAll: (payload: SendToAllPayload) => Promise<void>;
   startNewDiscussion: () => Promise<BrowserState>;
@@ -441,4 +708,28 @@ export interface ElectronAPI {
   onCellUrlChanged: (callback: (payload: CellUrlChangedPayload) => void) => () => void;
   onCellTitleChanged: (callback: (payload: CellTitleChangedPayload) => void) => () => void;
   onCellFaviconChanged: (callback: (payload: CellFaviconChangedPayload) => void) => () => void;
+  // API Bot 与群聊会谈
+  testBotApi: (payload: TestBotApiPayload) => Promise<TestBotApiResult>;
+  createBot: (payload: CreateBotPayload) => Promise<Bot>;
+  updateBot: (payload: UpdateBotPayload) => Promise<Bot>;
+  deleteBot: (id: string) => Promise<void>;
+  listBots: () => Promise<Bot[]>;
+  createConversation: (payload: CreateConversationPayload) => Promise<Conversation>;
+  updateConversation: (payload: UpdateConversationPayload) => Promise<ConversationSummary>;
+  deleteConversation: (id: string) => Promise<void>;
+  listConversations: () => Promise<ConversationSummary[]>;
+  getConversation: (id: string) => Promise<Conversation | null>;
+  updateConversationMember: (payload: UpdateConversationMemberPayload) => Promise<Conversation>;
+  addConversationMembers: (payload: AddConversationMembersPayload) => Promise<Conversation>;
+  removeConversationMember: (payload: RemoveConversationMemberPayload) => Promise<Conversation>;
+  sendConversationMessage: (payload: SendMessagePayload) => Promise<Conversation>;
+  stopConversationRound: (payload: ConversationTargetPayload) => Promise<void>;
+  stopConversationMember: (payload: ConversationTargetPayload) => Promise<void>;
+  retryConversationMember: (payload: ConversationTargetPayload) => Promise<Conversation>;
+  requestConversationReview: (payload: RequestReviewPayload) => Promise<Conversation>;
+  requestConversationSummary: (payload: RequestSummaryPayload) => Promise<Conversation>;
+  getConversationState: () => Promise<ConversationState>;
+  migrateConversationFromCells: (payload: MigrateFromCellsPayload) => Promise<ConversationState>;
+  onConversationMessageDelta: (callback: (payload: ConversationMessageDeltaPayload) => void) => () => void;
+  onConversationRoundStatus: (callback: (payload: ConversationRoundStatusPayload) => void) => () => void;
 }

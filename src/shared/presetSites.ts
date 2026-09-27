@@ -69,6 +69,17 @@ export function inferModeFromUrl(rawUrl: string): CellMode | 'unknown' {
   return findPresetSiteByUrl(rawUrl)?.mode ?? 'unknown';
 }
 
+/** Repair URLs persisted by older builds that treated iframe navigation as tab navigation. */
+export function repairPersistedSiteUrl(rawUrl: string): string {
+  const url = parseUrl(rawUrl);
+  const doubao = PRESET_SITES.find((site) => site.id === 'doubao');
+  if (url && doubao && hostsMatch(url.hostname, new URL(doubao.url).hostname)
+      && /^\/drive-iframe(?:\/|$)/.test(url.pathname)) {
+    return doubao.url;
+  }
+  return rawUrl;
+}
+
 export function findPresetSiteByUrl(rawUrl: string): PresetSite | null {
   const url = parseUrl(rawUrl);
   if (!url) {

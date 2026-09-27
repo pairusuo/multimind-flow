@@ -18,7 +18,7 @@
       "geminiRestricted": "Gemini 登录受限"
     },
     "apiMode": {
-      "title": "API 调用"
+      "title": "Bot 会谈"
     },
     "layout": {
       "label": "布局",
@@ -298,6 +298,253 @@
   "riskySites": {
     "geminiGoogleLogin": "该网站仅支持 Google 账号登录，Google 已限制嵌入式浏览器登录，可能无法正常使用"
   },
+  "botChat": {
+    "group": {
+      "details": "会谈详情",
+      "close": "收起会谈详情",
+      "name": "群名称",
+      "avatar": "群头像",
+      "save": "保存",
+      "changeAvatar": "更换头像",
+      "resetAvatar": "恢复默认",
+      "saveError": "保存失败，请重试。",
+      "avatarError": "请选择不超过 5 MB 的 PNG、JPEG 或 WebP 图片。"
+    },
+    "coordination": {
+      "label": "总指挥",
+      "off": "关闭 · 全体回答",
+      "hint": "未指定成员时自动安排任务并汇总，会增加模型调用。",
+      "planning": "总指挥正在安排任务…",
+      "working": "成员正在执行任务…",
+      "summarizing": "总指挥正在完成答复…",
+      "mention": "选择回答者",
+      "invalidMention": "未找到 @ 指定的成员，请从列表中选择。",
+      "automatic": "由 {{name}} 组织讨论"
+    },
+    "connectionGuide": {
+      "dsh": "DeepSeek Harness：在 DeepSeek 开放平台准备 API Key，安装后打开设置完成配置。官方项目：github.com/deepseek-ai/deepseek-harness（开发者预览版）。",
+      "title": "接入指南：账号、API Key 与费用",
+      "choice": "已有本地 Agent：选择“本地 Agent”，复用登录与配置。想充值后按用量调用模型：选择“自定义 API”，填写对应平台的 API Key。",
+      "deepseek": "DeepSeek API：在 DeepSeek 开放平台（platform.deepseek.com）充值并创建 API Key。",
+      "qwen": "千问 API：在阿里云百炼（bailian.console.aliyun.com）开通模型服务并创建 API Key，按用量计费。",
+      "kimi": "Kimi API：在 Kimi 开放平台中国站（platform.kimi.com）充值并创建 API Key；对应的 API 请求地址为 {{baseUrl}}。",
+      "kimiCode": "Kimi Code CLI：在 Kimi Code（kimi.com/code）开通会员服务，安装后在终端登录账号。",
+      "qoder": "Qoder CN CLI：在 Qoder CN（qoder.cn）开通套餐或领取可用的试用额度，安装后在终端登录账号。",
+      "billing": "费用和剩余额度在对应服务商账户查看。安装 Agent 不代表获得免费模型额度；试用额度与会员权益以服务商账户显示为准。",
+      "codex": "Codex CLI：安装后使用 ChatGPT 账号登录，或配置 OpenAI API Key；额度取决于所选方式。接入说明：developers.openai.com/codex/auth。",
+      "claude": "Claude Code：安装后使用有权限的 Claude 账号登录，或配置模型服务；费用按所用账号或服务结算。接入说明：code.claude.com/docs/en/authentication。",
+      "gemini": "Gemini CLI：安装后使用 Google 账号登录，或配置 Gemini API Key / Vertex AI。接入说明：geminicli.com/docs/get-started/authentication/。",
+      "qwenCode": "Qwen Code：Qwen 团队的开源终端 Agent，安装后配置百炼或其他模型服务的 API Key。接入说明：qwenlm.github.io/qwen-code-docs/zh/users/configuration/auth/。",
+      "qoderInternational": "Qoder 国际版：官网为 qoder.com；中国大陆版为上方的 Qoder CN。Qwen Code 是另一个产品，当前应用接入的是 Qoder CN CLI。",
+      "glm": "智谱 API：在智谱开放平台（open.bigmodel.cn）开通模型服务并创建 API Key。",
+      "doubao": "豆包 API：在火山方舟（console.volcengine.com/ark）开通模型服务并创建 API Key。",
+      "openai": "OpenAI API：在 OpenAI 开放平台（platform.openai.com）配置 API 计费并创建 API Key。",
+      "openrouter": "OpenRouter API：在 OpenRouter（openrouter.ai）充值并创建 API Key，使用平台提供的模型。"
+    },
+    "platform": "平台：{{platform}}",
+    "list": {
+      "empty": "还没有会谈",
+      "untitled": "未命名会谈",
+      "running": "生成中…",
+      "memberCount": "{{count}} 位成员",
+      "pickOrchestra": "从左侧选择一个会谈，或创建新会谈"
+    },
+    "onboarding": {
+      "needKey": "开始 API 会谈前，请先配置服务地址和 API Key",
+      "openSettings": "打开设置"
+    },
+    "migration": {
+      "title": "检测到旧版 API 格子模型，可一键创建为 Bot 会谈（重复模型会标注序号）",
+      "confirm": "用现有模型创建会谈",
+      "skip": "跳过，不再提示"
+    },
+    "round": {
+      "review": "互评一轮",
+      "summary": "总结"
+    },
+    "transcript": {
+      "empty": "发送第一条消息开始讨论"
+    },
+    "quote": {
+      "label": "引用 {{name}} 的回答",
+      "remove": "取消引用"
+    },
+    "composer": {
+      "placeholder": "输入消息，Enter 发送，Shift+Enter 换行",
+      "sendToAll": "发送给全体 {{count}} 位成员",
+      "sendToSelected": "发送给 {{names}}",
+      "none": "未选择成员",
+      "stop": "停止本轮",
+      "review": "互评一轮",
+      "summary": "生成总结",
+      "send": "发送"
+    },
+    "status": {
+      "streaming": "生成中",
+      "completed": "已完成",
+      "stopped": "已停止",
+      "failed": "失败",
+      "interrupted": "已中断",
+      "pending": "等待生成…"
+    },
+    "confirm": {
+      "deleteConversation": "确定删除这个会谈吗？历史消息将一并删除（已保存的文件和已导入的记忆不受影响）。"
+    },
+    "review": {
+      "title": "发起互评一轮",
+      "participants": "{{count}} 位成员参与，将产生 {{requests}} 个请求；成员将检查正确性、遗漏、依据与分歧，完成后停止。",
+      "confirm": "开始互评"
+    },
+    "summary": {
+      "title": "选择总结成员"
+    },
+    "newConversation": {
+      "title": "新建会谈",
+      "titleLabel": "标题（可选）",
+      "titlePlaceholder": "默认使用首条问题的简短文本",
+      "pickHint": "选择一个 Bot 单独聊天，或选择多个 Bot 一起讨论"
+    },
+    "bots": {
+      "chooseAvatar": "选择头像",
+      "resetAvatar": "恢复默认头像",
+      "avatarError": "请选择不超过 5 MB 的 PNG、JPG 或 WebP 图片。",
+      "title": "管理 Bot",
+      "platformHint": "模型通过平台 {{platform}} 调用；推荐列表不限制可填写的模型 ID",
+      "empty": "还没有 Bot，先创建一个",
+      "createTitle": "创建 Bot",
+      "editTitle": "编辑 Bot",
+      "name": "名称",
+      "model": "模型",
+      "modelPlaceholder": "从列表选择或手动填写模型 ID",
+      "manualModelHint": "手动填写的模型 ID 未经验证，可用性以实际调用结果为准",
+      "rolePrompt": "Soul / 角色与行为（可选）",
+      "rolePromptPlaceholder": "例如：你是一位方案顾问，请比较各方案的可行性与风险，先给结论，再说明理由。",
+      "confirmDelete": "确定删除这个 Bot 吗？历史会谈中的成员快照会保留。",
+      "newInstead": "改为新建"
+    },
+    "members": {
+      "noAvailable": "暂无可添加的 Bot，可以先创建一个。",
+      "title": "管理成员",
+      "addHint": "添加成员"
+    },
+    "actions": {
+      "newConversation": "新建会谈",
+      "manageBots": "管理 Bot",
+      "manageMembers": "管理成员",
+      "deleteConversation": "删除会谈",
+      "copy": "复制",
+      "quote": "引用",
+      "stopMember": "停止",
+      "retry": "重试",
+      "chatAlone": "单独聊天",
+      "edit": "编辑",
+      "delete": "删除",
+      "save": "保存",
+      "create": "创建",
+      "cancel": "取消",
+      "done": "完成",
+      "removeMember": "移除"
+    },
+    "runtime": {
+      "authHelp": {
+        "unknown": "本次使用的 Agent 需要登录。请在管理 Bot 中确认对应的 Agent，并按其登录提示完成操作后重试。",
+        "login": "{{name}} 需要登录或重新认证。在终端执行以下命令，按提示完成登录：",
+        "interactive": "{{name}} 需要登录或重新认证。在终端执行以下命令，进入后选择登录方式；如未出现登录提示，输入 /auth：",
+        "configure": "{{name}} 的模型服务认证失败。在终端执行以下命令，打开设置后检查模型服务的 API Key：",
+        "already": "检测到本机已有登录，未重新发起登录。请先重试；若仍失败，请运行上面的命令检查账号。",
+        "opened": "已打开终端，请在那里完成操作。",
+        "openFailed": "未能自动打开登录或设置，请手动打开终端执行上面的命令。",
+        "copy": "复制命令",
+        "copied": "命令已复制。",
+        "copyFailed": "复制失败，请手动复制上面的命令。",
+        "retry": "完成后回到此会谈，点击下方“重试”，无需重新创建 Bot。"
+      },
+      "intro": "Bot 可以使用本机 Agent 的登录与配置，也可以独立连接模型 API；两种 Bot 可以加入同一会谈。",
+      "connection": "接入方式",
+      "local": "本地 Agent",
+      "api": "自定义 API",
+      "legacy": "现有共享 API",
+      "checkFailed": "检测失败",
+      "restartDetection": "请完全退出并重新打开应用，再点击“重新检测”以启用新增 Agent。",
+      "notChecked": "尚未检测",
+      "checking": "正在检测…",
+      "available": "本机已安装",
+      "unavailable": "安装更多 Agent",
+      "noneInstalled": "暂未发现本地 Agent，选择下方的一键安装即可开始。",
+      "rerunInstall": "重新运行安装",
+      "installTerminalOpened": "安装终端已打开。请在终端确认安装完成，再点击“重新检测”。",
+      "repair": "重新安装",
+      "missing": "未安装",
+      "broken": "已找到，无法启动",
+      "installed": "已安装",
+      "install": "一键安装",
+      "copyInstall": "复制安装命令",
+      "login": "打开终端登录",
+      "refresh": "重新检测",
+      "docs": "安装指南",
+      "configuredLocally": "使用已有本机配置；首次使用请点击“打开设置”配置模型服务。",
+      "configure": "打开设置",
+      "linkError": "无法打开链接，请稍后重试。",
+      "installHelp": "安装帮助",
+      "installHint": "点击“一键安装”，按终端提示完成安装；也可以复制下方命令到终端运行。如果提示缺少 Node.js，请先按安装指南准备好环境。安装完成后，点击“重新检测”。",
+      "loginReused": "已复用本机已有登录，可以直接创建 Bot。",
+      "setupOpened": "已打开系统终端。请在那里完成操作，完成后请点击“重新检测”更新结果。",
+      "cacheReadError": "无法读取已保存的检测结果，请重新打开应用后重试。",
+      "detectError": "无法完成检测或保存结果，请点击“重新检测”重试。",
+      "copyFailed": "复制失败，请手动选择上方命令。",
+      "customModel": "手动填写模型",
+      "outputLimit": "最大输出 tokens（含推理，默认 4096）",
+      "errorDetails": "查看原始错误",
+      "errors": {
+        "local-auth": "此 Agent 尚未登录或登录已失效。请在管理 Bot 中打开终端登录，完成后重试。",
+        "local-timeout": "本轮等待超时，已保留收到的回答。你可以重试。",
+        "local-failed": "Agent 报告本轮执行失败，已保留收到的回答。你可以重试。",
+        "local-exited": "Agent 意外退出，已保留收到的回答，但无法确认本轮是否完成。",
+        "local-incomplete": "未收到本轮完成确认，已保留收到的回答。你可以重试。",
+        "coordination-failed": "总指挥未能完成任务安排。请重新发送，或 @ 指定成员回答。",
+        "local-empty": "Agent 已结束本轮，但没有返回回答。",
+        "local-output-limit": "Agent 返回的数据过大，本轮已停止，已保留收到的回答。",
+        "credits": "服务商余额不足，请检查余额，或降低 Bot 的最大输出 tokens 后创建新会谈。",
+        "api-auth": "鉴权失败。请在管理 Bot 中检查 API Key，并确认服务地址与 Key 所属的区域和套餐一致。"
+      },
+      "provider": "模型服务",
+      "custom": "自定义兼容服务",
+      "apiHint": "Key 只加密保存在本机。发送内容会交给此服务；模板修改只影响新加入的会谈成员。更换地址需要重新填写 Key。",
+      "optional": "可选",
+      "defaultModel": "使用 Agent 默认模型",
+      "auth": {
+        "subscription": "已登录：使用本地订阅账号配置",
+        "api": "已登录：使用本地 API 配置",
+        "unknown": "已检测到登录，计费方式请在 CLI 中确认",
+        "required": "尚未登录，可打开终端完成首次登录",
+        "unconfirmed": "可直接使用已有登录；首次使用请点击“打开终端登录”。"
+      },
+      "unknownSource": "未记录来源"
+    },
+    "activity": {
+      "connecting": "正在连接…",
+      "waiting": "等待响应…",
+      "thinking": "思考中…",
+      "searching": "正在搜索…",
+      "working": "正在处理…",
+      "answering": "正在回答…",
+      "retrying": "正在重试…"
+    },
+    "apiTest": {
+      "button": "测试连接",
+      "testing": "测试中…",
+      "hint": "测试会发送一条简短请求，可能产生少量费用。",
+      "success": "连接成功，API Key 和所选模型可用。",
+      "invalid": "请填写有效的 API 地址、API Key 和模型。",
+      "auth": "认证或访问被拒绝，请检查此服务的 API Key 和账号权限。",
+      "credits": "账号余额或可用额度不足，请在服务商平台查看。",
+      "model": "所选模型不可用，请检查模型名称及账号权限。",
+      "timeout": "连接超时，请稍后重试或检查 API 地址。",
+      "network": "无法连接服务，请检查网络和 API 地址。",
+      "restart": "测试功能需要重新启动应用后使用。",
+      "failed": "测试未成功，请检查服务地址、模型配置或稍后重试。"
+    }
+  },
   "apiConversation": {
     "errors": {
       "missingKey": "请先在设置中保存 API Key",
@@ -312,6 +559,13 @@
     }
   },
   "settings": {
+    "description": "调整你的工作区、外观与讨论偏好。",
+    "groups": {
+      "workspace": "工作区",
+      "appearance": "外观与语言",
+      "discussion": "讨论与记忆",
+      "sites": "分屏网站"
+    },
     "title": "设置",
     "layout": {
       "label": "布局",
@@ -342,7 +596,7 @@
       "label": "会谈模式",
       "options": {
         "embedded": "内嵌官网",
-        "api": "API 调用"
+        "api": "Bot 会谈"
       }
     },
     "memory": {
@@ -353,7 +607,8 @@
       "baseUrl": "API 基础地址",
       "apiKey": "API Key",
       "apiKeyPlaceholder": "输入 API Key",
-      "apiKeyConfigured": "已保存，留空不修改"
+      "apiKeyConfigured": "已保存，留空不修改",
+      "addressChanged": "更换地址会影响所有 Bot 的后续请求。请为新地址填写 API Key；留空会清除旧凭据，模型需要在新服务确认可用。"
     },
     "forward": {
       "label": "转发",
@@ -364,6 +619,26 @@
       "label": "版本",
       "value": "v{{version}}",
       "loading": "版本 -"
+    }
+  },
+  "updates": {
+    "title": "应用更新",
+    "autoCheck": "启动时自动检查新版本",
+    "idle": "可手动检查新版本。",
+    "checking": "正在检查…",
+    "current": "已是最新版本。",
+    "available": "新版本 {{version}} 可用。",
+    "downloading": "正在下载 {{progress}}%",
+    "ready": "更新已下载，重启后安装。",
+    "error": "检查或下载失败，请重试。",
+    "check": "检查更新",
+    "download": "下载更新",
+    "releases": "打开下载页",
+    "install": "重启并安装",
+    "errors": {
+      "network": "暂时无法获取更新，请稍后重试。",
+      "busy": "请等回答完成或停止本轮，再重启安装。",
+      "development": "开发模式不安装更新，请在安装后的应用中检查。"
     }
   }
 }

@@ -1292,15 +1292,47 @@ interface StoreSchema {
    - 免费/官网模式：用户在 AI 网页生成最终 Markdown，自行保存到授权目录；
      MultiMind Flow 扫描 `.md` / `.markdown` 候选文件，用户确认后入库
    - 可补充手动粘贴入口：用户直接粘贴 Markdown，预览确认后入库
-   - API 多模型会谈入口是后续并列入口：同一个问题可发给多个模型 API，
-     汇总/对比后生成候选 Markdown；它进入同一套确认导入和长期记忆库，
-     不另建一套存储
-   - API 会谈是主工作区的一种入口模式，不是设置页里的独立工具。设置页
-     只负责切换"内嵌官网 / API 模型"和填写 API 配置；主界面继续复用
-     分屏格子与底部统一输入，一次提问 fan-out 到多个 AI
-   - API 会谈第一版只支持一个 OpenAI-compatible 服务入口，用户配置
-     `baseUrl`、API Key 和多个模型名；不要一开始做多 Provider Key 管理、
-     托管额度、支付、流式输出或自动总结入库
+   - API 多模型会谈入口是并列入口：多方讨论的总结可生成候选 Markdown；
+     它进入同一套确认导入和长期记忆库，不另建一套存储
+   - **API 会谈已改为「Bot + 群聊会谈」模式**（方案与评审见
+     `docs/api-bot-group-conversation-proposal.md` 与
+     `docs/api-bot-group-conversation-review.md`，实施状态见
+     `docs/api-bot-group-conversation-implementation.md`）：用户创建绑定
+     模型的 Bot，把 一个或多个 Bot 加入同一会谈；一次提问并行获得各方回答，
+     再按需指定回应、引用回复、互评一轮、生成总结
+   - API 模式主视图是「会谈列表 + 群聊记录 + 收件人选择器」，**不再复用
+     分屏格子**，不再使用格子激活开关、网页导航与拖动转发；内嵌官网模式
+     的布局、标签页和登录状态保持独立
+   - 会谈规则采用**用户控制轮次**：每种操作对应明确接收者与有限请求；
+     不做隐藏主持模型、不做 Bot 自动互相叫醒、同一会谈同一时间只有一轮
+     运行、第一版不做自动压缩总结
+   - 上下文规则集中在 `src/shared/conversationContext.ts`（配套
+     `scripts/test-conversation-context.mjs` 单测，修改必须保持通过）：
+     同轮成员读取相同历史范围；角色说明只附加在成员自己的请求里；其他
+     成员回答以带身份讨论材料提供（防 prompt injection）；长会谈按整轮
+     裁切并同时告知模型与用户省略范围；显式引用永不静默截断（放不下报
+     错）；互评/总结任务模板只在最外层出现一次，不嵌套进历史正文
+   - 会话持久化使用 better-sqlite3（`conversations.sqlite`，见
+     `src/main/conversationStore.ts`）：`conversation_bots` /
+     `conversations` / `conversation_members`（成员身份快照，不含 Key）/
+     `conversation_messages`（按 `round_id` 组织）；不要把会话历史塞进
+     electron-store；重启后未完成请求标记为 `interrupted`，不自动续发
+   - Bot 支持本机已安装并登录的 CLI Agent，以及独立配置地址、Key、模型的
+     OpenAI-compatible API；两类成员可以混合会谈。兼容旧共享 API 配置。
+   - 创建 Bot 时先扫描本地 Agent；自定义 API 按服务商预填 Base URL，并提供最多 3 个近期文本模型供选择，保留自定义地址和模型。创建后可直接选择多个 Bot 建立会谈，一次提问并发获得各方回答。
+   - 本地 Agent 复用自身登录与模型配置；计费取决于实际认证方式，不能承诺
+     全部使用订阅额度或把本地 CLI 描述为本地离线模型。缺失时提供官方安装、
+     登录和重新检测入口；已有登录必须直接复用，支持登录检测的 Agent 在发起登录前必须再次确认未登录，检测失败不得触发重新授权。安装命令只能来自固定目录，不接受任意 shell 文本。
+   - CLI 进程在主进程管理，按会谈成员隔离；停止、超时和退出必须终止进程。
+     不自动批准 Agent 的写入或执行权限请求，不启用无沙箱/自动批准参数。
+   - API Key 加密留在主进程；会谈成员保存接入快照，修改模板不重定向旧会谈。
+     不做托管额度、支付或自动主持。
+   - cell-role-workflow-proposal 的**内嵌官网部分**（格子角色、半自动
+     工作流）继续独立演进；API 模式下的角色与编排由 Bot 角色说明 +
+     互评/总结替代，不为 API 会话实现 CellRoleTemplate
+   - api-conversation-governance-proposal 的敏感信息扫描/预算/审计尚未
+     实现；Bot 群聊数据模型已按 conversationId / roundId 组织，后续接入
+     governance 时把审计事件绑定到会话与轮次即可，不需改表结构
    - API Key 只保存在本机。主进程如可用 Electron `safeStorage`，应优先
      加密后写入本地配置；渲染进程不要回显完整 API Key
    - 自动读取总结者网页结果必须后置，只有在重新评审完成状态判断、抽取

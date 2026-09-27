@@ -1,4 +1,6 @@
-import { app, BrowserWindow, dialog, ipcMain, OpenDialogOptions } from 'electron';
+import { cachedAgentDetection, localAgentDetectionSnapshot } from './localAgentDetection';
+import { AppUpdater } from './appUpdater';
+import { app, shell, BrowserWindow, dialog, ipcMain, OpenDialogOptions } from 'electron';
 import {
   ApplyTemplatePayload,
   AppLanguage,
@@ -25,16 +27,47 @@ import {
   ToggleCellPayload,
 } from '../shared/types';
 import { ApiConversationService } from './apiConversationService';
+import { setupLocalAgent } from './localAgentRuntime';
+import { botGuideUrl, type LocalAgentId } from '../shared/botCatalog';
+import { ConversationService } from './conversationService';
 import { MemoryStore } from './memoryStore';
 import { WindowManager } from './windowManager';
+import {
+  CONVERSATION_IPC,
+  ConversationTargetPayload,
+  TestBotApiPayload,
+  CreateBotPayload,
+  CreateConversationPayload,
+  AddConversationMembersPayload,
+  RemoveConversationMemberPayload,
+  UpdateConversationMemberPayload,
+  UpdateBotPayload,
+  UpdateConversationPayload,
+  MigrateFromCellsPayload,
+  RequestReviewPayload,
+  RequestSummaryPayload,
+  SendMessagePayload,
+} from '../shared/types';
 
 export function registerIpcHandlers(
   windowManager: WindowManager,
   memoryStore: MemoryStore,
   apiConversationService: ApiConversationService,
+  conversationService: ConversationService,
 ): void {
+  const updater = new AppUpdater(() => conversationService.listConversations().some(item => !!conversationService.getConversation(item.id)?.runningRoundId), { get: () => windowManager.getAutoCheckUpdates(), set: enabled => windowManager.setAutoCheckUpdates(enabled) });
+  registerHandler(IPC.APP_UPDATE, (_event, action) => {
+    if (!['state', 'check', 'download', 'install', 'releases', 'enable-auto-check', 'disable-auto-check'].includes(action)) throw new Error('Invalid update action');
+    return updater.action(action);
+  });
+  void updater.checkOnStartup();
   registerHandler(IPC.GET_BROWSER_STATE, () => windowManager.getBrowserState());
 
+  registerHandler(IPC.OPEN_CONVERSATION_LINK, async (_event, value: string) => {
+    const url = new URL(value);
+    if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password) throw new Error('Invalid link');
+    await shell.openExternal(url.href);
+  });
   registerHandler(IPC.GET_APP_VERSION, () => app.getVersion());
 
   registerHandler(IPC.APPLY_TEMPLATE, (_event, payload: ApplyTemplatePayload) => windowManager.applyTemplate(payload));
@@ -198,6 +231,119 @@ export function registerIpcHandlers(
 
   registerHandler(IPC.CELL_FOCUSED, (_event, payload: CellFocusedPayload) => {
     windowManager.focusCell(payload.cellId);
+  });
+
+  // --- API Bot 与群聊会谈 ---------------------------------------------------
+  // 所有会话 IPC 都会登记事件目标，保证流式增量与轮次状态能推送到渲染层。
+
+  registerHandler(CONVERSATION_IPC.GET_LOCAL_AGENT_CACHE, (_event, agent: LocalAgentId, executable?: string) => localAgentDetectionSnapshot(agent, executable));
+  registerHandler(CONVERSATION_IPC.DETECT_LOCAL_AGENT, (_event, agent: LocalAgentId, executable?: string, force?: boolean) => cachedAgentDetection(agent, executable, force === true));
+
+  registerHandler(CONVERSATION_IPC.OPEN_BOT_GUIDE, async (_event, key: string) => { await shell.openExternal(botGuideUrl(key)); });
+  registerHandler(CONVERSATION_IPC.SETUP_LOCAL_AGENT, (_event, agent: LocalAgentId, action: 'install' | 'login' | 'docs', executable?: string) => setupLocalAgent(agent, action, executable));
+
+  const track = (event: Electron.IpcMainInvokeEvent) => conversationService.addEventTarget(event.sender);
+
+  registerHandler(CONVERSATION_IPC.TEST_BOT_API, (_event, payload: TestBotApiPayload) => conversationService.testBotApi(payload));
+
+  registerHandler(CONVERSATION_IPC.CREATE_BOT, (event, payload: CreateBotPayload) => {
+    track(event);
+    return conversationService.createBot(payload);
+  });
+
+  registerHandler(CONVERSATION_IPC.UPDATE_BOT, (event, payload: UpdateBotPayload) => {
+    track(event);
+    return conversationService.updateBot(payload);
+  });
+
+  registerHandler(CONVERSATION_IPC.DELETE_BOT, (event, id: string) => {
+    track(event);
+    return conversationService.deleteBot(id);
+  });
+
+  registerHandler(CONVERSATION_IPC.LIST_BOTS, (event) => {
+    track(event);
+    return conversationService.listBots();
+  });
+
+  registerHandler(CONVERSATION_IPC.CREATE_CONVERSATION, (event, payload: CreateConversationPayload) => {
+    track(event);
+    return conversationService.createConversation(payload);
+  });
+
+  registerHandler(CONVERSATION_IPC.UPDATE_CONVERSATION, (event, payload: UpdateConversationPayload) => {
+    track(event);
+    return conversationService.updateConversation(payload);
+  });
+
+  registerHandler(CONVERSATION_IPC.DELETE_CONVERSATION, (event, id: string) => {
+    track(event);
+    return conversationService.deleteConversation(id);
+  });
+
+  registerHandler(CONVERSATION_IPC.LIST_CONVERSATIONS, (event) => {
+    track(event);
+    return conversationService.listConversations();
+  });
+
+  registerHandler(CONVERSATION_IPC.GET_CONVERSATION, (event, id: string) => {
+    track(event);
+    return conversationService.getConversation(id);
+  });
+
+  registerHandler(CONVERSATION_IPC.ADD_CONVERSATION_MEMBERS, (event, payload: AddConversationMembersPayload) => {
+    track(event);
+    return conversationService.addConversationMembers(payload);
+  });
+
+  registerHandler(CONVERSATION_IPC.REMOVE_CONVERSATION_MEMBER, (event, payload: RemoveConversationMemberPayload) => {
+    track(event);
+    return conversationService.removeConversationMember(payload);
+  });
+
+  registerHandler(CONVERSATION_IPC.UPDATE_CONVERSATION_MEMBER, (event, payload: UpdateConversationMemberPayload) => {
+    track(event);
+    return conversationService.updateConversationMember(payload);
+  });
+
+  registerHandler(CONVERSATION_IPC.SEND_MESSAGE, (event, payload: SendMessagePayload) => {
+    track(event);
+    return conversationService.sendMessage(payload, event.sender);
+  });
+
+  registerHandler(CONVERSATION_IPC.STOP_ROUND, (event, payload: ConversationTargetPayload) => {
+    track(event);
+    return conversationService.stopRound(payload);
+  });
+
+  registerHandler(CONVERSATION_IPC.STOP_MEMBER, (event, payload: ConversationTargetPayload) => {
+    track(event);
+    return conversationService.stopMember(payload);
+  });
+
+  registerHandler(CONVERSATION_IPC.RETRY_MEMBER, (event, payload: ConversationTargetPayload) => {
+    track(event);
+    return conversationService.retryMember(payload, event.sender);
+  });
+
+  registerHandler(CONVERSATION_IPC.REQUEST_REVIEW, (event, payload: RequestReviewPayload) => {
+    track(event);
+    return conversationService.requestReview(payload, event.sender);
+  });
+
+  registerHandler(CONVERSATION_IPC.REQUEST_SUMMARY, (event, payload: RequestSummaryPayload) => {
+    track(event);
+    return conversationService.requestSummary(payload, event.sender);
+  });
+
+  registerHandler(CONVERSATION_IPC.GET_CONVERSATION_STATE, (event) => {
+    track(event);
+    return conversationService.getConversationState();
+  });
+
+  registerHandler(CONVERSATION_IPC.MIGRATE_FROM_CELLS, (event, payload: MigrateFromCellsPayload) => {
+    track(event);
+    return conversationService.migrateFromCells(payload);
   });
 }
 

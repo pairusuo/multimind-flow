@@ -1,8 +1,7 @@
 import { KeyboardEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ConversationEntryMode, LAYOUT_CELLS, LayoutMode } from '../../shared/types';
-
-const newConversationIconUrl = new URL('../assets/new-conversation.svg', import.meta.url).href;
+import { WorkspaceIcon } from './WorkspaceIcon';
 
 interface BottomInputProps {
   activeCells: Record<string, boolean>;
@@ -102,7 +101,7 @@ export default function BottomInput({
         disabled={isSending}
         onClick={onStartNewDiscussion}
       >
-        <img src={newConversationIconUrl} alt="" />
+        <WorkspaceIcon name="new-chat" />
       </button>
       <button
         type="button"
@@ -112,7 +111,7 @@ export default function BottomInput({
         disabled={isSending}
         onClick={onGenerateDocument}
       >
-        <DocumentSummaryIcon />
+        <WorkspaceIcon name="document" />
       </button>
       <textarea
         value={text}
@@ -128,20 +127,9 @@ export default function BottomInput({
         disabled={isSending || !text.trim()}
         onClick={() => void send()}
       >
-        {isSending ? t('bottomInput.sending') : t('bottomInput.send')}
+        <span>{isSending ? t('bottomInput.sending') : t('bottomInput.send')}</span>
+        <WorkspaceIcon name="send" />
       </button>
     </aside>
-  );
-}
-
-function DocumentSummaryIcon() {
-  return (
-    <svg className="document-summary-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path d="M7 3.75h7.1L18 7.65v12.6H7z" />
-      <path d="M14 3.75v4h4" />
-      <path d="M9.5 11h6" />
-      <path d="M9.5 14h5.1" />
-      <path d="M9.5 17h3.4" />
-    </svg>
   );
 }

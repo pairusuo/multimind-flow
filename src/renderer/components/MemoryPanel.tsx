@@ -1,5 +1,7 @@
+import AppSelect from './AppSelect';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { WorkspaceIcon } from './WorkspaceIcon';
 import {
   MemoryDocument,
   MemoryDocumentType,
@@ -325,7 +327,7 @@ export default function MemoryPanel({ onClose }: MemoryPanelProps) {
             <p>{t('memory.subtitle')}</p>
           </div>
           <button type="button" className="memory-close-button" aria-label={t('memory.actions.close')} onClick={onClose}>
-            ×
+            <WorkspaceIcon name="close" />
           </button>
         </header>
 
@@ -362,7 +364,7 @@ export default function MemoryPanel({ onClose }: MemoryPanelProps) {
                         disabled={busy}
                         onClick={() => setPendingRemoveSource(source)}
                       >
-                        ×
+                        <WorkspaceIcon name="close" />
                       </button>
                     </div>
                   ))}
@@ -441,19 +443,9 @@ export default function MemoryPanel({ onClose }: MemoryPanelProps) {
                     <span>{t('memory.fields.title')}</span>
                     <input value={draftTitle} onChange={(event) => setDraftTitle(event.target.value)} />
                   </label>
-                  <label>
-                    <span>{t('memory.fields.memoryType')}</span>
-                    <select
-                      value={draftMemoryType}
-                      onChange={(event) => setDraftMemoryType(event.target.value as DraftMemoryType)}
-                    >
-                      {MEMORY_TYPE_OPTIONS.map((memoryType) => (
-                        <option key={memoryType} value={memoryType}>
-                          {t(`memory.types.${memoryType}`)}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                  <AppSelect label={t('memory.fields.memoryType')} value={draftMemoryType}
+                    options={MEMORY_TYPE_OPTIONS.map(memoryType => ({ value: memoryType, label: t(`memory.types.${memoryType}`) }))}
+                    onChange={(value) => setDraftMemoryType(value as DraftMemoryType)} />
                   <label className="memory-choice-field">
                     <span>{t('memory.fields.memoryScope')}</span>
                     <div className="memory-choice-grid" role="radiogroup" aria-label={t('memory.fields.memoryScope')}>

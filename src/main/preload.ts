@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import {
+  AddConversationMembersPayload,
   ApplyTemplatePayload,
   AppLanguage,
   ApiConversationDeltaPayload,
@@ -8,6 +9,11 @@ import {
   CellFaviconChangedPayload,
   CellFocusedPayload,
   ConversationEntryMode,
+  ConversationMessageDeltaPayload,
+  ConversationRoundStatusPayload,
+  ConversationTargetPayload,
+  CreateBotPayload,
+  CreateConversationPayload,
   DisableMemoryDocumentPayload,
   ForwardCompletedPayload,
   ForwardResponsePayload,
@@ -21,21 +27,32 @@ import {
   GenerateDocumentPayload,
   ImportMemoryDocumentPayload,
   IPC,
+  MigrateFromCellsPayload,
   NavigatePayload,
   RecallMemoryForAgentTaskPayload,
+  RemoveConversationMemberPayload,
   RemoveMemorySourcePayload,
+  RequestReviewPayload,
+  RequestSummaryPayload,
   RunApiConversationPayload,
   SaveApiConversationConfigPayload,
   SearchMemoryDocumentsPayload,
   SendToAllPayload,
+  SendMessagePayload,
   SetMaximizedCellPayload,
   SetCellUrlPayload,
   ThemeMode,
   ToggleCellPayload,
+  UpdateBotPayload,
+  UpdateConversationMemberPayload,
+  UpdateConversationPayload,
+  CONVERSATION_IPC,
 } from '../shared/types';
 
 const api: ElectronAPI = {
+  appUpdate: (action) => ipcRenderer.invoke(IPC.APP_UPDATE, action),
   getBrowserState: () => ipcRenderer.invoke(IPC.GET_BROWSER_STATE) as Promise<BrowserState>,
+  openConversationLink: (url: string) => ipcRenderer.invoke(IPC.OPEN_CONVERSATION_LINK, url),
   getAppVersion: () => ipcRenderer.invoke(IPC.GET_APP_VERSION) as Promise<string>,
   applyTemplate: (payload: ApplyTemplatePayload) => ipcRenderer.invoke(IPC.APPLY_TEMPLATE, payload),
   sendToAll: (payload: SendToAllPayload) => ipcRenderer.invoke(IPC.SEND_TO_ALL, payload),
@@ -114,6 +131,46 @@ const api: ElectronAPI = {
     const listener = (_event: Electron.IpcRendererEvent, payload: CellFaviconChangedPayload) => callback(payload);
     ipcRenderer.on(IPC.CELL_FAVICON_CHANGED, listener);
     return () => ipcRenderer.removeListener(IPC.CELL_FAVICON_CHANGED, listener);
+  },
+  // API Bot 与群聊会谈
+  openBotGuide: (key) => ipcRenderer.invoke(CONVERSATION_IPC.OPEN_BOT_GUIDE, key),
+  setupLocalAgent: (agent, action, executable) => ipcRenderer.invoke(CONVERSATION_IPC.SETUP_LOCAL_AGENT, agent, action, executable),
+  getLocalAgentCache: (agent, executable) => ipcRenderer.invoke(CONVERSATION_IPC.GET_LOCAL_AGENT_CACHE, agent, executable),
+  detectLocalAgent: (agent, executable?: string, force?: boolean) => ipcRenderer.invoke(CONVERSATION_IPC.DETECT_LOCAL_AGENT, agent, executable, force),
+  testBotApi: (payload) => ipcRenderer.invoke(CONVERSATION_IPC.TEST_BOT_API, payload),
+  createBot: (payload: CreateBotPayload) => ipcRenderer.invoke(CONVERSATION_IPC.CREATE_BOT, payload),
+  updateBot: (payload: UpdateBotPayload) => ipcRenderer.invoke(CONVERSATION_IPC.UPDATE_BOT, payload),
+  deleteBot: (id: string) => ipcRenderer.invoke(CONVERSATION_IPC.DELETE_BOT, id),
+  listBots: () => ipcRenderer.invoke(CONVERSATION_IPC.LIST_BOTS),
+  createConversation: (payload: CreateConversationPayload) => ipcRenderer.invoke(CONVERSATION_IPC.CREATE_CONVERSATION, payload),
+  updateConversation: (payload: UpdateConversationPayload) => ipcRenderer.invoke(CONVERSATION_IPC.UPDATE_CONVERSATION, payload),
+  deleteConversation: (id: string) => ipcRenderer.invoke(CONVERSATION_IPC.DELETE_CONVERSATION, id),
+  listConversations: () => ipcRenderer.invoke(CONVERSATION_IPC.LIST_CONVERSATIONS),
+  getConversation: (id: string) => ipcRenderer.invoke(CONVERSATION_IPC.GET_CONVERSATION, id),
+  updateConversationMember: (payload: UpdateConversationMemberPayload) =>
+    ipcRenderer.invoke(CONVERSATION_IPC.UPDATE_CONVERSATION_MEMBER, payload),
+  addConversationMembers: (payload: AddConversationMembersPayload) =>
+    ipcRenderer.invoke(CONVERSATION_IPC.ADD_CONVERSATION_MEMBERS, payload),
+  removeConversationMember: (payload: RemoveConversationMemberPayload) =>
+    ipcRenderer.invoke(CONVERSATION_IPC.REMOVE_CONVERSATION_MEMBER, payload),
+  sendConversationMessage: (payload: SendMessagePayload) => ipcRenderer.invoke(CONVERSATION_IPC.SEND_MESSAGE, payload),
+  stopConversationRound: (payload: ConversationTargetPayload) => ipcRenderer.invoke(CONVERSATION_IPC.STOP_ROUND, payload),
+  stopConversationMember: (payload: ConversationTargetPayload) => ipcRenderer.invoke(CONVERSATION_IPC.STOP_MEMBER, payload),
+  retryConversationMember: (payload: ConversationTargetPayload) => ipcRenderer.invoke(CONVERSATION_IPC.RETRY_MEMBER, payload),
+  requestConversationReview: (payload: RequestReviewPayload) => ipcRenderer.invoke(CONVERSATION_IPC.REQUEST_REVIEW, payload),
+  requestConversationSummary: (payload: RequestSummaryPayload) => ipcRenderer.invoke(CONVERSATION_IPC.REQUEST_SUMMARY, payload),
+  getConversationState: () => ipcRenderer.invoke(CONVERSATION_IPC.GET_CONVERSATION_STATE),
+  migrateConversationFromCells: (payload: MigrateFromCellsPayload) =>
+    ipcRenderer.invoke(CONVERSATION_IPC.MIGRATE_FROM_CELLS, payload),
+  onConversationMessageDelta: (callback: (payload: ConversationMessageDeltaPayload) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: ConversationMessageDeltaPayload) => callback(payload);
+    ipcRenderer.on(CONVERSATION_IPC.MESSAGE_DELTA, listener);
+    return () => ipcRenderer.removeListener(CONVERSATION_IPC.MESSAGE_DELTA, listener);
+  },
+  onConversationRoundStatus: (callback: (payload: ConversationRoundStatusPayload) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: ConversationRoundStatusPayload) => callback(payload);
+    ipcRenderer.on(CONVERSATION_IPC.ROUND_STATUS, listener);
+    return () => ipcRenderer.removeListener(CONVERSATION_IPC.ROUND_STATUS, listener);
   },
 };
 

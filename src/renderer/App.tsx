@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import i18n from './i18n';
 import CellConfigPanel from './components/CellConfigPanel';
+import ConversationView from './components/ConversationView';
 import Toolbar from './components/Toolbar';
 import SplitView from './components/SplitView';
 import BottomInput from './components/BottomInput';
@@ -111,16 +112,7 @@ export default function App() {
       return;
     }
 
-    void Promise.all([
-      window.electronAPI.getBrowserState(),
-      window.electronAPI.getApiConversationConfig(),
-    ]).then(([browserState, nextApiConfig]) => {
-      applyBrowserState(browserState);
-      setApiConfig(nextApiConfig);
-      if (browserState.conversationEntryMode === 'api') {
-        void refreshApiModels();
-      }
-    });
+    void window.electronAPI.getBrowserState().then(applyBrowserState);
   }, []);
 
   useEffect(() => {
@@ -294,17 +286,7 @@ export default function App() {
     if (mode === 'api') {
       setMaximizedCellId(null);
       await window.electronAPI.setMaximizedCell({ cellId: null });
-      await refreshApiModels();
     }
-  }
-
-  async function refreshApiModels() {
-    const nextConfig = typeof window.electronAPI.refreshApiConversationModels === 'function'
-      ? await window.electronAPI.refreshApiConversationModels()
-      : await window.electronAPI.getApiConversationConfig();
-    setApiConfig(nextConfig);
-    setApiCellStates((current) => buildApiCellStates(nextConfig.cellModels ?? {}, current));
-    return nextConfig;
   }
 
   async function handleSaveApiConfig(payload: { baseUrl: string; apiKey?: string; models?: string[]; cellModels?: Record<string, string> }) {
@@ -602,27 +584,33 @@ export default function App() {
         className={`browser-stage browser-stage-${layoutMode}${conversationEntryMode === 'api' ? ' browser-stage-api-mode' : ''}${maximizedCellId ? ' browser-stage-maximized' : ''}`}
         aria-label="Browser content"
       >
-        <SplitView
-          activeCells={activeCells}
-          apiCellStates={buildApiCellStates(apiConfig.cellModels ?? {}, apiCellStates)}
-          apiModels={apiConfig.models}
-          cellModes={cellModes}
-          cellUrls={cellUrls}
-          conversationEntryMode={conversationEntryMode}
-          focusedCellId={focusedCellId}
-          forwardControlsEnabled={forwardControlsEnabled}
-          layoutMode={layoutMode}
-          maximizedCellId={maximizedCellId}
-          onFocusCell={handleFocusCell}
-          onToggleMaximized={handleToggleMaximizedCell}
-          onNewTab={(cellId, url) => void handleNewTab(cellId, url)}
-          onToggleCell={handleToggleCell}
-          onApiCellModelChange={(cellId, model) => void handleApiCellModelChange(cellId, model)}
-          onApiForward={handleApiForward}
-          onClearApiCell={handleClearApiCell}
-        />
+        {conversationEntryMode === 'api' ? (
+          <ConversationView
+            language={language}
+          />
+        ) : (
+          <SplitView
+            activeCells={activeCells}
+            apiCellStates={buildApiCellStates(apiConfig.cellModels ?? {}, apiCellStates)}
+            apiModels={apiConfig.models}
+            cellModes={cellModes}
+            cellUrls={cellUrls}
+            conversationEntryMode={conversationEntryMode}
+            focusedCellId={focusedCellId}
+            forwardControlsEnabled={forwardControlsEnabled}
+            layoutMode={layoutMode}
+            maximizedCellId={maximizedCellId}
+            onFocusCell={handleFocusCell}
+            onToggleMaximized={handleToggleMaximizedCell}
+            onNewTab={(cellId, url) => void handleNewTab(cellId, url)}
+            onToggleCell={handleToggleCell}
+            onApiCellModelChange={(cellId, model) => void handleApiCellModelChange(cellId, model)}
+            onApiForward={handleApiForward}
+            onClearApiCell={handleClearApiCell}
+          />
+        )}
       </main>
-      {(!maximizedCellId || conversationEntryMode === 'api') && (
+      {conversationEntryMode === 'embedded' && !maximizedCellId && (
         <BottomInput
           activeCells={activeCells}
           availableCells={getAvailableCells(conversationEntryMode, layoutMode, cellUrls, apiConfig.cellModels ?? {})}
@@ -642,7 +630,6 @@ export default function App() {
           searchUrlTemplates={searchUrlTemplates}
           language={language}
           conversationEntryMode={conversationEntryMode}
-          apiConfig={apiConfig}
           forwardControlsEnabled={forwardControlsEnabled}
           layoutMode={layoutMode}
           themeMode={themeMode}
@@ -652,7 +639,6 @@ export default function App() {
           onConversationEntryModeChange={(mode) => void handleConversationEntryModeChange(mode)}
           onForwardControlsEnabledChange={(enabled) => void handleForwardControlsEnabledChange(enabled)}
           onThemeModeChange={(mode) => void handleThemeModeChange(mode)}
-          onSaveApiConfig={(payload) => void handleSaveApiConfig(payload)}
           onOpenMemory={() => {
             setShowConfigPanel(false);
             setShowMemoryPanel(true);

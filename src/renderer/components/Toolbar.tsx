@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getRiskySiteReasonKey } from '../../shared/riskySites';
 import { CellTab, ConversationEntryMode, LayoutMode } from '../../shared/types';
+import { WorkspaceIcon } from './WorkspaceIcon';
 
 interface ToolbarProps {
   conversationEntryMode: ConversationEntryMode;
@@ -92,14 +93,14 @@ export default function Toolbar({
                     disabled={!activeTabId}
                     onClick={() => onCloseTab(tab.id)}
                   >
-                    ×
+                    <WorkspaceIcon name="close" />
                   </button>
                 </div>
               );
             })}
           </div>
         <button type="button" title={t('toolbar.tabs.newTab')} aria-label={t('toolbar.tabs.newTab')} onClick={onNewTab}>
-          +
+          <WorkspaceIcon name="plus" />
         </button>
         </div>
       )}
@@ -109,16 +110,17 @@ export default function Toolbar({
         <>
           <nav className="navigation-controls" aria-label={t('toolbar.navigation.label')}>
             <button type="button" aria-label={t('toolbar.navigation.back')} onClick={() => window.electronAPI.navigateBack(focusedCellId)}>
-              ←
+              <WorkspaceIcon name="back" />
             </button>
             <button type="button" aria-label={t('toolbar.navigation.forward')} onClick={() => window.electronAPI.navigateForward(focusedCellId)}>
-              →
+              <WorkspaceIcon name="forward" />
             </button>
             <button type="button" aria-label={t('toolbar.navigation.reload')} onClick={() => window.electronAPI.reload(focusedCellId)}>
-              ↻
+              <WorkspaceIcon name="reload" />
             </button>
           </nav>
           <form className={`address-form${addressRiskReason ? ' has-risk' : ''}`} onSubmit={handleSubmit}>
+            <WorkspaceIcon name="globe" className="address-icon" />
             <label className="sr-only" htmlFor="address-input">
               {t('toolbar.address.label')}
             </label>
@@ -140,23 +142,10 @@ export default function Toolbar({
       )}
       <div className="toolbar-actions" role="group" aria-label={t('toolbar.actions.label')}>
         <button type="button" className="toolbar-icon-button toolbar-settings-button" title={t('toolbar.actions.editCells')} aria-label={t('toolbar.actions.editCells')} onClick={onOpenConfig}>
-          <SettingsIcon />
+          <WorkspaceIcon name="settings" />
         </button>
       </div>
     </header>
-  );
-}
-
-function SettingsIcon() {
-  return (
-    <svg className="toolbar-svg-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path d="M4 7h7" />
-      <path d="M15 7h5" />
-      <circle cx="13" cy="7" r="2" />
-      <path d="M4 17h5" />
-      <path d="M13 17h7" />
-      <circle cx="11" cy="17" r="2" />
-    </svg>
   );
 }
 

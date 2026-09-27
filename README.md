@@ -2,6 +2,12 @@
 
 MultiMind Flow is a desktop workspace for discussing with multiple AI assistants and search engines side by side. It supports split-screen cells, a shared input box, per-cell configuration, and manual cross-checking between AI responses.
 
+## 使用指南
+
+- [应用更新](docs/app-updates.md) — 检查新版本、下载安装，以及 GitHub Releases 发布要求。
+
+- [Bot 接入指南：账号、API Key 与费用](docs/bot-connection-guide.md) — 千问／百炼、DeepSeek、Kimi、Qoder CN 的开通与使用方式。
+
 ## Supported Platforms
 
 - macOS: Apple Silicon and Intel builds are packaged as a Universal app.

@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type { CellNoticePayload } from '../../shared/types';
+import { WorkspaceIcon } from './WorkspaceIcon';
 
 interface CellNoticeProps {
   notice: CellNoticePayload;
@@ -37,7 +38,7 @@ export default function CellNotice({ notice, onClose }: CellNoticeProps) {
         <span>{t(notice.messageKey)}</span>
       </div>
       <button type="button" aria-label={t('notices.close')} onClick={onClose}>
-        ×
+        <WorkspaceIcon name="close" />
       </button>
     </div>
   );

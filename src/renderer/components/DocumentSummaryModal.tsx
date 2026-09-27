@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { DocumentCandidate } from '../../shared/types';
 import { findPresetSiteByUrl } from '../../shared/presetSites';
+import { WorkspaceIcon } from './WorkspaceIcon';
 
 interface DocumentSummaryModalProps {
   candidates: DocumentCandidate[];
@@ -24,8 +25,8 @@ export default function DocumentSummaryModal({
       <section className="document-panel" aria-label={t('documentSummary.title')}>
         <header className="panel-header">
           <h1>{t('documentSummary.title')}</h1>
-          <button type="button" onClick={onClose}>
-            {t('documentSummary.actions.close')}
+          <button type="button" className="panel-close-button" aria-label={t('documentSummary.actions.close')} onClick={onClose}>
+            <WorkspaceIcon name="close" />
           </button>
         </header>
 

@@ -3,14 +3,19 @@ import fsSync from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { ApiConversationService } from './apiConversationService';
+import { ConversationService } from './conversationService';
+import { ConversationStore } from './conversationStore';
 import { registerIpcHandlers } from './ipcHandlers';
 import { MemoryStore } from './memoryStore';
+import { disposeLocalAgents } from './localAgentRuntime';
 import { createBrowserStore, WindowManager } from './windowManager';
 
 let mainWindow: BrowserWindow | null = null;
 let windowManager: WindowManager | null = null;
 let memoryStore: MemoryStore | null = null;
+let conversationStore: ConversationStore | null = null;
 let apiConversationService: ApiConversationService | null = null;
+let conversationService: ConversationService | null = null;
 
 configureAppIdentity();
 bindProcessExceptionHandlers();
@@ -35,8 +40,10 @@ async function createWindow(): Promise<void> {
   const store = await createBrowserStore();
   memoryStore = memoryStore ?? new MemoryStore(path.join(app.getPath('userData'), 'memory.sqlite'));
   apiConversationService = apiConversationService ?? new ApiConversationService(store);
+  conversationStore = conversationStore ?? new ConversationStore(path.join(app.getPath('userData'), 'conversations.sqlite'));
+  conversationService = conversationService ?? new ConversationService(conversationStore);
   windowManager = new WindowManager(mainWindow, store);
-  registerIpcHandlers(windowManager, memoryStore, apiConversationService);
+  registerIpcHandlers(windowManager, memoryStore, apiConversationService, conversationService);
 
   mainWindow.on('resize', () => windowManager?.layout());
   mainWindow.on('close', () => {
@@ -138,6 +145,10 @@ function escapeHtml(value: string): string {
 
 app.on('before-quit', () => {
   windowManager?.dispose();
+  conversationService?.dispose();
+  disposeLocalAgents();
+  conversationStore?.close();
+  conversationStore = null;
   memoryStore?.close();
   memoryStore = null;
 });

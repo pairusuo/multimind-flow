@@ -164,3 +164,25 @@ assert.deepEqual(
 );
 
 console.log('API conversation tests passed.');
+
+const { callChatCompletion } = require('../dist/main/apiConversationService.js');
+const { botErrorKind } = require('../dist/shared/botErrors.js');
+const previousFetch = globalThis.fetch;
+const requests = [];
+try {
+  globalThis.fetch = async (_url, options) => {
+    requests.push(JSON.parse(options.body));
+    return new Response(JSON.stringify({ choices: [{ message: { content: 'answer' } }] }), { headers: { 'content-type': 'application/json' } });
+  };
+  for (const baseUrl of ['https://openrouter.ai/api/v1', 'https://api.openai.com/v1', 'https://api.deepseek.com']) {
+    await callChatCompletion({ baseUrl, apiKey: 'fixture', model: 'fixture', messages: [] });
+    const body = requests.at(-1);
+    assert.equal(body.max_completion_tokens ?? body.max_tokens, 4096);
+    assert.equal('temperature' in body, false, 'Use model defaults, including models that reject sampling controls');
+  }
+  await callChatCompletion({ baseUrl: 'https://openrouter.ai/api/v1', apiKey: 'fixture', model: 'fixture', messages: [], maxOutputTokens: 512 });
+  assert.equal(requests.at(-1).max_completion_tokens, 512);
+} finally { globalThis.fetch = previousFetch; }
+assert.equal(botErrorKind('This request requires more credits, or fewer max_tokens. You can only afford 800'), 'credits');
+assert.equal(botErrorKind('Incorrect API key provided'), 'api-auth');
+assert.equal(botErrorKind('Local Agent timed out'), null);

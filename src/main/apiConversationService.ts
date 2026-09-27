@@ -1,3 +1,4 @@
+import { DEFAULT_BOT_OUTPUT_TOKENS } from '../shared/botCatalog';
 import { safeStorage } from 'electron';
 import {
   ApiConversationConfig,
@@ -14,6 +15,7 @@ const CONFIG_KEY = 'apiConversation.config';
 const DEFAULT_BASE_URL = 'https://openrouter.ai/api/v1';
 const DEFAULT_MODELS: string[] = [];
 const REQUEST_TIMEOUT_MS = 60000;
+const CONVERSATION_REQUEST_TIMEOUT_MS = 300000;
 const MODEL_LIST_TIMEOUT_MS = 15000;
 const MAINSTREAM_MODEL_PROVIDER_ORDER = [
   'openai',
@@ -63,6 +65,8 @@ const EXCLUDED_MODEL_PATTERNS = [
 interface StoredApiConversationConfig {
   baseUrl?: string;
   models?: string[];
+  /** 平台返回的完整模型列表（仅按 type/object 过滤非聊天模型，不做品牌筛选） */
+  allModels?: string[];
   cellModels?: Record<string, string>;
   apiKey?: string;
   apiKeyEncrypted?: boolean;
@@ -88,11 +92,22 @@ export class ApiConversationService {
   getConfig(): ApiConversationConfig {
     const stored = this.getStoredConfig();
     const models = filterModelCatalog(normalizeModels(stored.models));
+    const allModels = normalizeModels(stored.allModels?.length ? stored.allModels : stored.models);
     return {
       baseUrl: stored.baseUrl || DEFAULT_BASE_URL,
       models,
-      cellModels: normalizeCellModels(stored.cellModels, models),
+      allModels,
+      cellModels: normalizeCellModels(stored.cellModels, allModels),
       apiKeyConfigured: Boolean(stored.apiKey),
+    };
+  }
+
+  /** 供会话服务获取服务入口凭据；Key 不出主进程、不进日志。 */
+  getCredentials(): { baseUrl: string; apiKey: string } {
+    const stored = this.getStoredConfig();
+    return {
+      baseUrl: normalizeBaseUrl(stored.baseUrl || DEFAULT_BASE_URL),
+      apiKey: decryptApiKey(stored),
     };
   }
 
@@ -101,18 +116,25 @@ export class ApiConversationService {
     const baseUrl = normalizeBaseUrl(payload.baseUrl);
     const previousBaseUrl = normalizeBaseUrl(current.baseUrl || DEFAULT_BASE_URL);
     const previousApiKey = decryptApiKey(current);
-    const nextApiKey = payload.apiKey?.trim() || previousApiKey;
+    const addressChanged = baseUrl !== previousBaseUrl;
+    const nextApiKey = payload.apiKey?.trim() || (addressChanged ? '' : previousApiKey);
     const explicitModels = payload.models ? normalizeModels(payload.models) : null;
     const shouldRefreshModels = Boolean(nextApiKey) || baseUrl !== previousBaseUrl || !current.models?.length;
     const discoveredModels = shouldRefreshModels ? await fetchModelIds(baseUrl, nextApiKey) : [];
     const models = discoveredModels.length
+      ? filterModelCatalog(discoveredModels)
+      : filterModelCatalog(explicitModels ?? (addressChanged ? [] : normalizeModels(current.models)));
+    const allModels = discoveredModels.length
       ? discoveredModels
-      : filterModelCatalog(explicitModels ?? normalizeModels(current.models));
+      : normalizeModels(explicitModels ?? (addressChanged ? [] : current.allModels ?? current.models ?? []));
     const next: StoredApiConversationConfig = {
       ...current,
       baseUrl,
+      apiKey: addressChanged ? '' : current.apiKey,
+      apiKeyEncrypted: addressChanged ? false : current.apiKeyEncrypted,
       models,
-      cellModels: normalizeCellModels(payload.cellModels ?? current.cellModels, models, Boolean(discoveredModels.length)),
+      allModels,
+      cellModels: normalizeCellModels(payload.cellModels ?? current.cellModels, allModels, Boolean(discoveredModels.length)),
     };
 
     if (payload.apiKey?.trim()) {
@@ -137,7 +159,8 @@ export class ApiConversationService {
     this.store.set(CONFIG_KEY, {
       ...current,
       baseUrl,
-      models: discoveredModels,
+      models: filterModelCatalog(discoveredModels),
+      allModels: discoveredModels,
       cellModels: normalizeCellModels(current.cellModels, discoveredModels, true),
     });
     return this.getConfig();
@@ -156,7 +179,8 @@ export class ApiConversationService {
     }
 
     const baseUrl = normalizeBaseUrl(stored.baseUrl || DEFAULT_BASE_URL);
-    const models = filterModelCatalog(normalizeModels(payload.models?.length ? payload.models : stored.models));
+    // 评审 9.2：推荐模型不是白名单；请求使用的模型 ID 不再按品牌筛选。
+    const models = normalizeModels(payload.models?.length ? payload.models : stored.models);
     if (!models.length) {
       throw new Error('At least one model is required.');
     }
@@ -178,30 +202,50 @@ export class ApiConversationService {
   }
 }
 
-async function callModel(
-  baseUrl: string,
-  apiKey: string,
-  model: string,
-  prompt: string,
-  requestId?: string,
-  onDelta?: ApiConversationDeltaHandler,
-): Promise<ApiConversationModelResult> {
+export interface ChatCompletionMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+export interface ChatCompletionResult {
+  content: string;
+  error?: string;
+  elapsedMs: number;
+}
+
+/**
+ * 可复用的流式 chat/completions 调用。
+ * - 支持多轮 messages 数组（群聊上下文）
+ * - 支持外部 AbortSignal（按成员停止）与独立超时
+ */
+export async function callChatCompletion(params: {
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+  messages: ChatCompletionMessage[];
+  maxOutputTokens?: number;
+  signal?: AbortSignal;
+  timeoutMs?: number;
+  onDelta?: (delta: string, content: string) => void;
+}): Promise<ChatCompletionResult> {
   const startedAt = Date.now();
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), params.timeoutMs ?? REQUEST_TIMEOUT_MS);
+  const onExternalAbort = () => controller.abort();
+  params.signal?.addEventListener('abort', onExternalAbort, { once: true });
   let content = '';
 
   try {
-    const response = await fetch(`${baseUrl}/chat/completions`, {
+    const response = await fetch(`${params.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${apiKey}`,
+        Authorization: `Bearer ${params.apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model,
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.7,
+        model: params.model,
+        messages: params.messages,
+        ...(['api.openai.com', 'openrouter.ai'].includes(new URL(params.baseUrl).hostname) ? { max_completion_tokens: params.maxOutputTokens ?? DEFAULT_BOT_OUTPUT_TOKENS } : { max_tokens: params.maxOutputTokens ?? DEFAULT_BOT_OUTPUT_TOKENS }),
         stream: true,
       }),
       signal: controller.signal,
@@ -211,42 +255,42 @@ async function callModel(
       const json = await response.json().catch(() => ({})) as ChatCompletionResponse;
       content = (json.choices?.[0]?.message?.content ?? json.choices?.[0]?.text ?? '').trim();
       const error = json.error?.message || (!response.ok ? `HTTP ${response.status}` : '');
-      emitApiDelta(onDelta, {
-        requestId,
-        model,
-        content,
-        done: true,
-        ...(error ? { error } : {}),
-        elapsedMs: Date.now() - startedAt,
-      });
-      return {
-        model,
-        content,
-        ...(error ? { error } : {}),
-        elapsedMs: Date.now() - startedAt,
-      };
+      return { content, ...(error ? { error } : {}), elapsedMs: Date.now() - startedAt };
     }
 
     if (!response.ok) {
       const error = `HTTP ${response.status}`;
-      emitApiDelta(onDelta, {
-        requestId,
-        model,
-        content: '',
-        done: true,
-        error,
-        elapsedMs: Date.now() - startedAt,
-      });
-      return {
-        model,
-        content: '',
-        error,
-        elapsedMs: Date.now() - startedAt,
-      };
+      return { content: '', error, elapsedMs: Date.now() - startedAt };
     }
 
     content = await readStreamingContent(response.body, (delta) => {
       content += delta;
+      params.onDelta?.(delta, content);
+    });
+    return { content: content.trim(), elapsedMs: Date.now() - startedAt };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { content, error: message, elapsedMs: Date.now() - startedAt };
+  } finally {
+    clearTimeout(timeout);
+    params.signal?.removeEventListener('abort', onExternalAbort);
+  }
+}
+
+async function callModel(
+  baseUrl: string,
+  apiKey: string,
+  model: string,
+  prompt: string,
+  requestId?: string,
+  onDelta?: ApiConversationDeltaHandler,
+): Promise<ApiConversationModelResult> {
+  const result = await callChatCompletion({
+    baseUrl,
+    apiKey,
+    model,
+    messages: [{ role: 'user', content: prompt }],
+    onDelta: (delta, content) => {
       emitApiDelta(onDelta, {
         requestId,
         model,
@@ -254,38 +298,23 @@ async function callModel(
         content,
         done: false,
       });
-    });
-    emitApiDelta(onDelta, {
-      requestId,
-      model,
-      content,
-      done: true,
-      elapsedMs: Date.now() - startedAt,
-    });
-    return {
-      model,
-      content: content.trim(),
-      elapsedMs: Date.now() - startedAt,
-    };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    emitApiDelta(onDelta, {
-      requestId,
-      model,
-      content,
-      done: true,
-      error: message,
-      elapsedMs: Date.now() - startedAt,
-    });
-    return {
-      model,
-      content,
-      error: message,
-      elapsedMs: Date.now() - startedAt,
-    };
-  } finally {
-    clearTimeout(timeout);
-  }
+    },
+  });
+
+  emitApiDelta(onDelta, {
+    requestId,
+    model,
+    content: result.content,
+    done: true,
+    ...(result.error ? { error: result.error } : {}),
+    elapsedMs: result.elapsedMs,
+  });
+  return {
+    model,
+    content: result.content,
+    ...(result.error ? { error: result.error } : {}),
+    elapsedMs: result.elapsedMs,
+  };
 }
 
 async function fetchModelIds(baseUrl: string, apiKey?: string): Promise<string[]> {
@@ -320,7 +349,8 @@ async function fetchModelIds(baseUrl: string, apiKey?: string): Promise<string[]
       .filter((item) => isUsableChatModel(item))
       .map((item) => (typeof item.id === 'string' ? item.id.trim() : ''))
       .filter(Boolean);
-    return filterModelCatalog(normalizeModels(chatModels));
+    // 平台返回的完整列表不做品牌筛选；推荐列表（filterModelCatalog）由保存时另行计算。
+    return normalizeModels(chatModels);
   } catch {
     return [];
   } finally {

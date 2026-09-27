@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { LAYOUT_TEMPLATES, LayoutTemplate } from '../../shared/presetTemplates';
+import { LayoutIcon, WorkspaceIcon } from './WorkspaceIcon';
 
 interface TemplateChooserProps {
   onApplyTemplate: (template: LayoutTemplate) => void;
@@ -17,6 +18,7 @@ export default function TemplateChooser({ onApplyTemplate }: TemplateChooserProp
         <div className="template-grid">
           {LAYOUT_TEMPLATES.map((template) => (
             <button key={template.id} type="button" className="template-card" onClick={() => onApplyTemplate(template)}>
+              <LayoutIcon mode={template.layout} />
               <span>{t(`templateChooser.templates.${template.id}`, { defaultValue: template.name })}</span>
               <small>{t('templateChooser.cellCount', { count: template.siteIds.length })}</small>
             </button>
@@ -33,6 +35,7 @@ export default function TemplateChooser({ onApplyTemplate }: TemplateChooserProp
               })
             }
           >
+            <WorkspaceIcon name="settings" />
             <span>{t('templateChooser.custom.name')}</span>
             <small>{t('templateChooser.custom.description')}</small>
           </button>

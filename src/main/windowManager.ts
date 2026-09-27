@@ -1,7 +1,7 @@
 import { app, BrowserWindow, WebContents, WebContentsView, nativeTheme } from 'electron';
 import { NOTICE_MESSAGE_KEYS } from '../shared/notices';
 import { buildDocumentPrompt, detectContentLanguage } from '../shared/documentPrompt';
-import { findPresetSiteByUrl, inferModeFromUrl, PRESET_SITES } from '../shared/presetSites';
+import { findPresetSiteByUrl, inferModeFromUrl, PRESET_SITES, repairPersistedSiteUrl } from '../shared/presetSites';
 import {
   ApplyTemplatePayload,
   AppLanguage,
@@ -387,6 +387,16 @@ export class WindowManager {
     this.store.set('conversation.entryMode', mode);
     this.layout();
     return this.getBrowserState();
+  }
+
+  getAutoCheckUpdates(): boolean {
+    if (this.isDestroyed()) return false;
+    return this.store.get('updates.autoCheck', false) === true;
+  }
+
+  setAutoCheckUpdates(enabled: boolean): void {
+    if (this.isDestroyed()) return;
+    this.store.set('updates.autoCheck', enabled);
   }
 
   setForwardControlsEnabled(enabled: boolean): BrowserState {
@@ -1653,8 +1663,13 @@ export class WindowManager {
       this.sendUrl(cellId, publicUrl);
       this.checkNavigationNotice(cellId, publicUrl);
     });
-    view.webContents.on('did-navigate-in-page', (_event, url) => {
+    view.webContents.on('did-navigate-in-page', (_event, url, isMainFrame) => {
       if (this.isDestroyed() || view.webContents.isDestroyed()) {
+        return;
+      }
+
+      // SPA navigation also fires for iframes; only the top-level URL belongs to the tab.
+      if (!isMainFrame) {
         return;
       }
 
@@ -1958,7 +1973,11 @@ export class WindowManager {
 
   private getStoredCellUrls(): Record<string, string> {
     return CELL_IDS.reduce<Record<string, string>>((urls, cellId) => {
-      urls[cellId] = String(this.store.get(`cells.${cellId}.url`, DEFAULT_URLS[cellId]));
+      const storedUrl = String(this.store.get(`cells.${cellId}.url`, DEFAULT_URLS[cellId]));
+      urls[cellId] = repairPersistedSiteUrl(storedUrl);
+      if (urls[cellId] !== storedUrl) {
+        this.store.set(`cells.${cellId}.url`, urls[cellId]);
+      }
       return urls;
     }, {});
   }
@@ -2002,8 +2021,11 @@ export class WindowManager {
     return CELL_IDS.reduce<Record<string, CellTab[]>>((tabs, cellId) => {
       const storedTabs = this.store.get(`cells.${cellId}.tabs`);
       tabs[cellId] = isCellTabList(storedTabs)
-        ? storedTabs
+        ? storedTabs.map((tab) => ({ ...tab, url: repairPersistedSiteUrl(tab.url) }))
         : [createTab(this.cellUrls[cellId], safeTabTitle(this.cellUrls[cellId]))];
+      if (isCellTabList(storedTabs) && storedTabs.some((tab, index) => tab.url !== tabs[cellId][index].url)) {
+        this.store.set(`cells.${cellId}.tabs`, tabs[cellId]);
+      }
       return tabs;
     }, {});
   }

@@ -1,5 +1,9 @@
 appId: com.multimind.browser
 productName: MultiMind Flow
+publish:
+  provider: github
+  owner: pairusuo
+  repo: multimind-flow
 directories:
   output: release
 files:
