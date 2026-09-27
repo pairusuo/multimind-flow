@@ -8,6 +8,7 @@ const builderConfig = fs.readFileSync(path.join(root, 'electron-builder.yml'), '
 const installerScript = fs.readFileSync(path.join(root, 'build', 'installer.nsh'), 'utf8');
 const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 const nativeRebuildScript = fs.readFileSync(path.join(root, 'scripts', 'rebuild-native.mjs'), 'utf8');
+const windowsNativePreparationScript = fs.readFileSync(path.join(root, 'scripts', 'prepare-windows-native.mjs'), 'utf8');
 const windowsPackageScript = fs.readFileSync(path.join(root, 'scripts', 'package-windows.mjs'), 'utf8');
 const iconGenerationScript = fs.readFileSync(path.join(root, 'scripts', 'generate-icons.mjs'), 'utf8');
 
@@ -53,6 +54,7 @@ assert.equal(
 
 for (const [name, source] of [
   ['native rebuild', nativeRebuildScript],
+  ['Windows native preparation', windowsNativePreparationScript],
   ['Windows packaging', windowsPackageScript],
 ]) {
   assert.ok(source.includes('process.env.npm_execpath'), `${name} must invoke npm through its JavaScript entry point.`);

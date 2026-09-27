@@ -7,11 +7,17 @@ import { assertWindowsX64Pe } from './native-binary-format.mjs';
 const require = createRequire(import.meta.url);
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const electronVersion = require('electron/package.json').version;
-const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+const npmCliPath = process.env.npm_execpath;
+
+if (!npmCliPath) {
+  console.error('npm_execpath is unavailable; run this command through npm.');
+  process.exit(1);
+}
 
 const result = spawnSync(
-  npmCommand,
+  process.execPath,
   [
+    npmCliPath,
     'rebuild',
     'better-sqlite3',
     '--runtime=electron',
