@@ -496,6 +496,13 @@
       "outputLimit": "Maximum output tokens (including reasoning; default 4096)",
       "errorDetails": "Original error",
       "errors": {
+        "coordination-credentials": "Could not read the coordinator’s API key. Check system credential access and Bot settings, then send again or @ another member.",
+        "credential-read": "Could not read the saved API key after automatic retries. Retry shortly; if this continues, save the key again in Manage Bots.",
+        "credential-unavailable": "The system credential store is unavailable after automatic retries. Unlock it and allow app access, then retry.",
+        "credential-decrypt": "Could not decrypt the saved API key after automatic retries. If you denied system credential access, allow it and retry; if this continues, save the key again in Manage Bots.",
+        "credential-missing": "This Bot has no available API key. Save a key for the original service address in Manage Bots, then retry.",
+        "retry-unavailable": "The information needed to retry this response was not saved. Send a new message; you can @ the Bot that failed.",
+
         "local-auth": "This agent is not signed in or its login has expired. Open terminal sign-in in Manage Bots, then retry.",
         "local-timeout": "This round timed out. Any received answer has been kept. You can retry.",
         "local-failed": "The agent reported a failed turn. Any received answer has been kept. You can retry.",
@@ -535,6 +542,7 @@
       "testing": "Testing…",
       "hint": "Sends a short request and may incur a small charge.",
       "success": "Connected. Your API key and selected model work.",
+      "credentials": "Could not read the saved API key after automatic retries. Check system credential store access, or enter the key again and test.",
       "invalid": "Enter a valid API URL, API key and model.",
       "auth": "Authentication or access denied. Check this service’s API key and account permissions.",
       "credits": "Insufficient balance or quota. Check your provider account.",

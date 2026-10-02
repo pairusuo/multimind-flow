@@ -306,7 +306,9 @@ export default function ConversationView({ language }: ConversationViewProps) {
     try {
       await window.electronAPI.retryConversationMember({ conversationId: activeId, botId, messageId });
     } catch (retryError) {
-      setError(retryError instanceof Error ? retryError.message : String(retryError));
+      const message = retryError instanceof Error ? retryError.message : String(retryError);
+      const kind = botErrorKind(message);
+      setError(kind ? t(`botChat.runtime.errors.${kind}`) : message);
     } finally {
       setSending(false);
     }
@@ -701,7 +703,7 @@ function MemberBubble({
   const { t } = useTranslation();
   const errorKind = message.error ? botErrorKind(message.error) : null;
   const retryable =
-    !stopped && errorKind !== 'coordination-failed' &&
+    !stopped && errorKind !== 'coordination-failed' && errorKind !== 'coordination-credentials' &&
     (message.status === 'failed' || message.status === 'stopped' || message.status === 'interrupted');
 
   return (

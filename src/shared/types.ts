@@ -369,7 +369,7 @@ export interface Bot {
 }
 
 export interface TestBotApiPayload { baseUrl: string; apiKey?: string; model: string; botId?: string; }
-export type TestBotApiResult = { status: 'success' | 'invalid' | 'auth' | 'credits' | 'model' | 'timeout' | 'network' | 'restart' | 'failed'; };
+export type TestBotApiResult = { status: 'success' | 'invalid' | 'auth' | 'credits' | 'model' | 'timeout' | 'network' | 'restart' | 'credentials' | 'failed'; };
 
 export interface CreateBotPayload {
   avatar?: string;

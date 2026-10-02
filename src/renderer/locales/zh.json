@@ -496,6 +496,13 @@
       "outputLimit": "最大输出 tokens（含推理，默认 4096）",
       "errorDetails": "查看原始错误",
       "errors": {
+        "coordination-credentials": "无法读取总指挥的 API Key。请检查系统凭据访问权限和 Bot 配置后重新发送，或 @ 其他成员回答。",
+        "credential-read": "无法读取本机保存的 API Key，已自动重试。请稍后点击“重试”；若持续失败，请在管理 Bot 中重新保存 Key。",
+        "credential-unavailable": "系统钥匙串暂不可用，已自动重试。请解锁钥匙串，并允许应用访问后点击“重试”。",
+        "credential-decrypt": "无法解密已保存的 API Key，已自动重试。若曾拒绝系统钥匙串授权，请允许应用访问后重试；若仍失败，请在管理 Bot 中重新保存 Key。",
+        "credential-missing": "此 Bot 没有可用的 API Key。请在管理 Bot 中为原服务地址保存 Key 后重试。",
+        "retry-unavailable": "这条回答未保留重试所需的信息。请重新发送消息，可 @ 指定失败的 Bot。",
+
         "local-auth": "此 Agent 尚未登录或登录已失效。请在管理 Bot 中打开终端登录，完成后重试。",
         "local-timeout": "本轮等待超时，已保留收到的回答。你可以重试。",
         "local-failed": "Agent 报告本轮执行失败，已保留收到的回答。你可以重试。",
@@ -535,6 +542,7 @@
       "testing": "测试中…",
       "hint": "测试会发送一条简短请求，可能产生少量费用。",
       "success": "连接成功，API Key 和所选模型可用。",
+      "credentials": "无法读取已保存的 API Key，已自动重试。请检查系统钥匙串访问权限，或重新填写 Key 后测试。",
       "invalid": "请填写有效的 API 地址、API Key 和模型。",
       "auth": "认证或访问被拒绝，请检查此服务的 API Key 和账号权限。",
       "credits": "账号余额或可用额度不足，请在服务商平台查看。",

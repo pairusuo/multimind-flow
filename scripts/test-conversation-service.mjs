@@ -78,6 +78,7 @@ try {
   const waiting = [];
   apiModule.callChatCompletion = (params) => new Promise((resolve) => waiting.push({ params, resolve }));
   const pending = service.sendMessage({ conversationId: conversation.id, content: 'Question' }, sender);
+  await new Promise(setImmediate);
   assert.equal(waiting.length, 2, 'All members start concurrently');
   const started = events[0].payload;
   assert.equal(started.status, 'running');
@@ -101,6 +102,7 @@ try {
   assert.equal(expanded.members.length, 7, 'Existing large conversations can add members');
   waiting.length = 0;
   const largeRound = service.sendMessage({ conversationId: large.id, content: 'Everyone answer' }, sender);
+  await new Promise(setImmediate);
   assert.equal(waiting.length, 7, 'Every member starts before any answer completes');
   for (const request of waiting) request.resolve({ content: 'Answer', elapsedMs: 1 });
   await largeRound;
@@ -213,10 +215,133 @@ try {
     assert.ok(!JSON.stringify(mixedService.getConversation(mixed.id)).includes('custom-only-key'));
   } finally { localModule.callLocalAgent = originalLocal; mixedService.dispose(); }
 
+  // Credential failures preserve exact retry inputs, never reach the network, and can be cancelled.
+  const safeStorage = require('electron').safeStorage;
+  const originalDecrypt = safeStorage.decryptString;
+  const originalAvailable = safeStorage.isEncryptionAvailable;
+  const originalWarn = console.warn;
+  const credentialLogs = [];
+  console.warn = (...args) => credentialLogs.push(args);
+  try {
+    const key = 'private-key-must-not-appear-in-errors';
+    const credentialBot = service.createBot({ connection, apiKey: key, name: 'Credential test', model: 'credential-test' });
+    const credentialConversation = service.createConversation({ botIds: [credentialBot.id, b.id] });
+    let decryptAttempts = 0;
+    let failures = Infinity;
+    safeStorage.decryptString = buffer => {
+      if (buffer.toString() === key) {
+        decryptAttempts++;
+        if (decryptAttempts <= failures) throw new Error(`Native failure containing ${key}`);
+      }
+      return originalDecrypt(buffer);
+    };
+    const credentialRequests = [];
+    apiModule.callChatCompletion = async request => {
+      credentialRequests.push(request);
+      return { content: 'Recovered', elapsedMs: 1 };
+    };
+    const pendingCredentials = service.sendMessage({ conversationId: credentialConversation.id, content: 'Keep this exact question' }, sender);
+    await new Promise(setImmediate);
+    assert.equal(credentialRequests.length, 1, 'Healthy peer starts while credential retries are waiting');
+    assert.equal(credentialRequests[0].model, b.model);
+    const firstFailure = store.listMessages(credentialConversation.id).find(message => message.botId === credentialBot.id);
+    const savedInputs = store.getRequestSnapshot(firstFailure.id);
+    assert.ok(savedInputs, 'Snapshot exists before credential retry finishes');
+    await pendingCredentials;
+    assert.equal(decryptAttempts, 3, 'Credential reads are bounded to three attempts');
+    assert.equal(store.getMessage(firstFailure.id).error, 'BOT_CREDENTIAL_DECRYPT');
+    assert.ok(events.some(event => event.payload.messageId === firstFailure.id && event.payload.activity === 'retrying'));
+    assert.equal(credentialRequests.length, 1, 'Unreadable credentials never reach the API');
+
+    decryptAttempts = 0;
+    await service.retryMember({ conversationId: credentialConversation.id, botId: credentialBot.id, messageId: firstFailure.id });
+    const secondFailure = store.listMessages(credentialConversation.id).at(-1);
+    assert.equal(secondFailure.error, 'BOT_CREDENTIAL_DECRYPT', 'Manual retry must not throw during address validation');
+    assert.equal(decryptAttempts, 3);
+    assert.deepEqual(store.getRequestSnapshot(secondFailure.id), savedInputs);
+    failures = 2; decryptAttempts = 0;
+    await service.retryMember({ conversationId: credentialConversation.id, botId: credentialBot.id, messageId: secondFailure.id });
+    assert.equal(decryptAttempts, 3);
+    assert.equal(store.listMessages(credentialConversation.id).at(-1).status, 'completed');
+    assert.deepEqual(credentialRequests.at(-1).messages, savedInputs.context.messages, 'Recovery replays exact original context');
+    assert.equal(credentialRequests.length, 2, 'Recovery makes exactly one model request');
+
+    // Connection testing shares the same bounded recovery and reports local storage separately.
+    failures = Infinity; decryptAttempts = 0;
+    assert.deepEqual(await service.testBotApi({ baseUrl: connection.baseUrl, model: credentialBot.model, botId: credentialBot.id }), { status: 'credentials' });
+    assert.equal(decryptAttempts, 3);
+    assert.equal(credentialRequests.length, 2);
+    assert.ok(!JSON.stringify(credentialLogs).includes(key), 'Diagnostics must not log raw errors or keys');
+    assert.ok(!JSON.stringify(service.getConversation(credentialConversation.id)).includes(key));
+    assert.ok(!JSON.stringify(savedInputs).includes(key));
+
+    decryptAttempts = 0;
+    const cancelled = service.sendMessage({ conversationId: credentialConversation.id, content: 'Cancel credentials', botIds: [credentialBot.id] });
+    await new Promise(setImmediate);
+    service.stopMember({ conversationId: credentialConversation.id, botId: credentialBot.id });
+    await cancelled;
+    assert.equal(decryptAttempts, 1, 'Stop cancels the pending retry delay');
+    assert.equal(store.listMessages(credentialConversation.id).at(-1).status, 'stopped');
+    assert.equal(service.getConversation(credentialConversation.id).runningRoundId, null);
+    assert.equal(credentialRequests.length, 2);
+
+    decryptAttempts = 0;
+    const deleted = service.createConversation({ botIds: [credentialBot.id] });
+    const deletedPending = service.sendMessage({ conversationId: deleted.id, content: 'Delete during credential read' }, sender);
+    await new Promise(setImmediate);
+    service.deleteConversation(deleted.id);
+    const beforeLate = events.length;
+    await deletedPending;
+    assert.equal(decryptAttempts, 1);
+    assert.equal(events.length, beforeLate, 'Deleted credential waits emit no late events');
+
+    // A locked credential store can recover without attempting decryption while locked.
+    let availableChecks = 0;
+    failures = 0; decryptAttempts = 0;
+    safeStorage.isEncryptionAvailable = () => ++availableChecks >= 3;
+    await service.sendMessage({ conversationId: credentialConversation.id, content: 'Unlock', botIds: [credentialBot.id] });
+    assert.equal(availableChecks, 3);
+    assert.equal(decryptAttempts, 1);
+    assert.equal(credentialRequests.length, 3);
+    safeStorage.isEncryptionAvailable = () => false;
+    await service.sendMessage({ conversationId: credentialConversation.id, content: 'Locked', botIds: [credentialBot.id] });
+    assert.equal(store.listMessages(credentialConversation.id).at(-1).error, 'BOT_CREDENTIAL_UNAVAILABLE');
+    assert.equal(credentialRequests.length, 3);
+
+    const coordinated = service.createConversation({ botIds: [credentialBot.id] });
+    service.updateConversation({ id: coordinated.id, coordinatorId: credentialBot.id });
+    await service.sendMessage({ conversationId: coordinated.id, content: 'Coordinate while locked' });
+    assert.equal(store.listMessages(coordinated.id).at(-1).error, 'COORDINATION_CREDENTIAL_FAILED');
+    assert.equal(service.getConversation(coordinated.id).runningRoundId, null);
+    assert.equal(credentialRequests.length, 3, 'Coordinator cannot call a model while credentials are unavailable');
+
+    const realGetCredential = store.getCredential.bind(store);
+    store.getCredential = () => { throw new Error(`Database read failed ${key}`); };
+    await service.sendMessage({ conversationId: credentialConversation.id, content: 'Read failure', botIds: [credentialBot.id] });
+    assert.equal(store.listMessages(credentialConversation.id).at(-1).error, 'BOT_CREDENTIAL_READ');
+    store.getCredential = () => null;
+    await service.sendMessage({ conversationId: credentialConversation.id, content: 'Missing key', botIds: [credentialBot.id] });
+    assert.equal(store.listMessages(credentialConversation.id).at(-1).error, 'BOT_CREDENTIAL_MISSING');
+    store.getCredential = realGetCredential;
+    assert.ok(!JSON.stringify(credentialLogs).includes(key));
+
+    // Existing responses without a snapshot cannot safely reconstruct their exact task.
+    const unavailable = store.listMessages(credentialConversation.id).at(-1);
+    const realGetSnapshot = store.getRequestSnapshot.bind(store);
+    store.getRequestSnapshot = () => null;
+    await assert.rejects(service.retryMember({ conversationId: credentialConversation.id, botId: credentialBot.id, messageId: unavailable.id }), /CONVERSATION_RETRY_UNAVAILABLE/);
+    store.getRequestSnapshot = realGetSnapshot;
+  } finally {
+    safeStorage.decryptString = originalDecrypt;
+    safeStorage.isEncryptionAvailable = originalAvailable;
+    console.warn = originalWarn;
+  }
+
   // Deletion/disposal ignores both late stream chunks and final results.
   waiting.length = 0;
   apiModule.callChatCompletion = (params) => new Promise((resolve) => waiting.push({ params, resolve }));
   const late = service.sendMessage({ conversationId: conversation.id, content: 'Delete during response' }, sender);
+  await new Promise(setImmediate);
   service.deleteConversation(conversation.id);
   const eventCount = events.length;
   for (const request of waiting) {

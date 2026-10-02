@@ -186,3 +186,8 @@ try {
 assert.equal(botErrorKind('This request requires more credits, or fewer max_tokens. You can only afford 800'), 'credits');
 assert.equal(botErrorKind('Incorrect API key provided'), 'api-auth');
 assert.equal(botErrorKind('Local Agent timed out'), null);
+
+for (const [code, kind] of [['BOT_CREDENTIAL_READ', 'credential-read'], ['BOT_CREDENTIAL_UNAVAILABLE', 'credential-unavailable'], ['BOT_CREDENTIAL_DECRYPT', 'credential-decrypt'], ['BOT_CREDENTIAL_MISSING', 'credential-missing']]) {
+  assert.equal(botErrorKind(code), kind);
+}
+assert.equal(botErrorKind("Error invoking remote method 'conversation-retry-member': Error: CONVERSATION_RETRY_UNAVAILABLE"), 'retry-unavailable');

@@ -41,6 +41,7 @@ import {
 } from '../shared/types';
 import { callChatCompletion } from './apiConversationService';
 import { ConversationStore } from './conversationStore';
+import { BotCredentialError, readBotApiKey } from './botCredentials';
 
 const CONVERSATION_REQUEST_TIMEOUT_MS = 300000;
 const STORE_FLUSH_INTERVAL_MS = 400;
@@ -114,12 +115,11 @@ export class ConversationService {
       if (!apiKey && payload.botId) {
         const connection = this.store.listBots().find(bot => bot.id === payload.botId)?.connection;
         if (connection?.kind === 'api' && connection.baseUrl === baseUrl && connection.credentialId) {
-          const encrypted = this.store.getCredential(connection.credentialId);
-          if (encrypted) apiKey = safeStorage.decryptString(Buffer.from(encrypted, 'base64'));
+          apiKey = await readBotApiKey(() => this.store.getCredential(connection.credentialId!));
         }
       }
       if (!apiKey) return { status: 'invalid' };
-    } catch { return { status: 'invalid' }; }
+    } catch (error) { return { status: error instanceof BotCredentialError && error.reason !== 'missing' ? 'credentials' : 'invalid' }; }
     // A real, short completion validates model access too. Never save the draft or expose provider errors/keys.
     const result = await callChatCompletion({ baseUrl, apiKey, model: payload.model.trim(), messages: [{ role: 'user', content: 'Reply only with OK.' }], maxOutputTokens: 64, timeoutMs: 30000 });
     // Some reasoning models can consume this deliberately small output budget
@@ -349,8 +349,7 @@ export class ConversationService {
       history: entries, memberName: member.name, memberModel: member.model, memberRolePrompt: member.rolePrompt,
       connectionKind: member.connection?.kind, operation: 'normal', userInstruction: instruction, quotedEntry: quote,
     });
-    // Validate credentials and context before recording or charging for a plan.
-    const credentials = this.memberCredentials(lead);
+    // Validate context before recording or charging for a plan.
     const planContext = contextFor(lead, payload.content);
     planContext.messages.push({ role: 'user', content: [
       'Act as coordinator. Use the request and conversation above to assign work. Do not execute tools or answer the task yet.',
@@ -369,6 +368,8 @@ export class ConversationService {
     runtime.controllers.set(lead.botId, controller);
     publish();
     try {
+      const credentials = await this.memberCredentials(lead, controller.signal);
+      if (!alive() || controller.signal.aborted) return this.getConversation(conversationId)!;
       const request = { ...credentials, model: lead.model, messages: planContext.messages, signal: controller.signal,
         timeoutMs: 60000, maxOutputTokens: 2048, onDelta: () => {} };
       const result = lead.connection?.kind === 'cli' ? await callLocalAgent({ ...request, connection: lead.connection }) : await callChatCompletion(request);
@@ -399,14 +400,14 @@ export class ConversationService {
       if (alive() && !(plan.mode === 'sequential' && plan.tasks.at(-1)?.botId === lead.botId)) await execute([{ member: lead, instruction: plan.mode === 'direct'
         ? (language === 'zh' ? '请直接回答上文用户的最新请求。' : 'Answer the latest user request above directly.')
         : (language === 'zh' ? '继续完成上文同一次请求，不是新一轮。结合成员的本次结果给出答案；你也是参与者，完成你尚未完成的部分。已经完成的行动不要重复。遵守用户要求的长度和格式；简单任务直接回答，不要强加核查报告或待办清单。仅对实际失败或未完成的任务说明情况。' : 'Complete the same request above, not a new round. Use the current member results and contribute your own outstanding work as a participant. Do not repeat completed actions. Follow the requested length and format; simple tasks need a direct answer, not an audit or checklist. Mention only actual failures or incomplete tasks.') }], 'summarizing');
-    } catch {
+    } catch (error) {
       if (alive()) {
         runtime.coordinationFailed = true;
         // Persist a user-facing failure so reopening the conversation does not hide it.
         const failure = this.store.insertMessage({ conversationId, roundId: runtime.roundId, botId: lead.botId, botSnapshotName: lead.name,
           botSnapshotModel: lead.model, botSnapshotSource: this.memberSource(lead), role: 'assistant', content: '',
           status: 'failed', messageType: 'normal' });
-        this.store.updateMessage(failure.id, { error: 'COORDINATION_FAILED' });
+        this.store.updateMessage(failure.id, { error: error instanceof BotCredentialError ? 'COORDINATION_CREDENTIAL_FAILED' : 'COORDINATION_FAILED' });
       }
     } finally {
       runtime.controllers.delete(lead.botId);
@@ -441,8 +442,8 @@ export class ConversationService {
       throw new Error('This response has already been retried.');
     }
     const snapshot = this.store.getRequestSnapshot(priorAttempt.id);
-    if (!snapshot) throw new Error('This older response has no retry snapshot. Send a new message instead.');
-    if (snapshot.baseUrl !== this.memberCredentials(snapshot.member).baseUrl) {
+    if (!snapshot) throw new Error('CONVERSATION_RETRY_UNAVAILABLE');
+    if (snapshot.baseUrl !== this.memberBaseUrl(snapshot.member)) {
       throw new Error('The service address has changed. Send a new message instead of retrying.');
     }
     const { context, language } = snapshot;
@@ -701,14 +702,20 @@ export class ConversationService {
     return member.connection?.kind === 'api' ? member.connection.baseUrl : '';
   }
 
-  private memberCredentials(member: ConversationMember): { baseUrl: string; apiKey: string } {
+  private memberBaseUrl(member: ConversationMember): string {
+    return member.connection?.kind === 'cli' ? `local:${member.connection.agent}`
+      : member.connection?.kind === 'api' ? member.connection.baseUrl : '';
+  }
+
+  private async memberCredentials(member: ConversationMember, signal?: AbortSignal, onRetry?: () => void): Promise<{ baseUrl: string; apiKey: string }> {
     const connection = member.connection;
-    if (connection?.kind === 'cli') return { baseUrl: `local:${connection.agent}`, apiKey: '' };
+    const baseUrl = this.memberBaseUrl(member);
+    if (connection?.kind === 'cli') return { baseUrl, apiKey: '' };
     if (connection?.kind === 'api') {
-      const encrypted = connection.credentialId ? this.store.getCredential(connection.credentialId) : null;
-      return { baseUrl: connection.baseUrl, apiKey: encrypted ? safeStorage.decryptString(Buffer.from(encrypted, 'base64')) : '' };
+      const apiKey = await readBotApiKey(() => connection.credentialId ? this.store.getCredential(connection.credentialId) : null, signal, onRetry);
+      return { baseUrl, apiKey };
     }
-    throw new Error('Configure this Bot in Manage Bots before using it.');
+    throw new BotCredentialError('missing');
   }
 
   private async launchMembers(
@@ -723,42 +730,31 @@ export class ConversationService {
     }
 
     const tasks = members.map(async (member) => {
-      let credentials: { baseUrl: string; apiKey: string };
-      try {
-        credentials = this.memberCredentials(member);
-      } catch {
-        this.finishMember(conversationId, member.botId, {
-          status: 'failed', error: language === 'zh' ? '无法读取此 Bot 的凭据，请重新配置。' : 'Unable to read this bot’s credentials. Configure it again.',
-        });
-        return;
-      }
-      const { baseUrl, apiKey } = credentials;
       const context = memberContexts.get(member.botId);
-      const messageId = this.rounds.get(conversationId)?.memberMessageIds.get(member.botId);
-      if (!context || !messageId) {
-        return;
-      }
+      const messageId = runtime.memberMessageIds.get(member.botId);
+      if (!context || !messageId || this.rounds.get(conversationId) !== runtime) return;
 
-      this.store.saveRequestSnapshot(messageId, { member, context, baseUrl, language });
-      if (member.connection?.kind !== 'cli' && !apiKey) {
-        this.finishMember(conversationId, member.botId, {
-          status: 'failed',
-          error: language === 'zh' ? '未配置 API Key' : 'API key is not configured.',
-        });
-        return;
-      }
-
+      // Persist exact inputs before credential access, so local read failures remain retryable.
+      this.store.saveRequestSnapshot(messageId, { member, context, baseUrl: this.memberBaseUrl(member), language });
       const controller = new AbortController();
-      const currentRuntime = this.rounds.get(conversationId);
-      if (!currentRuntime || currentRuntime.roundId !== runtime.roundId) {
-        return;
-      }
-      currentRuntime.controllers.set(member.botId, controller);
+      runtime.controllers.set(member.botId, controller);
+      if (runtime.stopped) controller.abort();
 
       let lastFlush = 0;
       let activity: AgentActivity | undefined;
       let streamedContent = '';
       try {
+        const { baseUrl, apiKey } = await this.memberCredentials(member, controller.signal, () => {
+          if (this.rounds.get(conversationId) !== runtime || controller.signal.aborted) return;
+          (runtime.activities ??= new Map()).set(messageId, 'retrying');
+          this.emitDelta({ conversationId, roundId: runtime.roundId, messageId, botId: member.botId,
+            content: '', done: false, activity: 'retrying' });
+        });
+        if (this.rounds.get(conversationId) !== runtime) return;
+        controller.signal.throwIfAborted();
+        (runtime.activities ??= new Map()).set(messageId, 'connecting');
+        this.emitDelta({ conversationId, roundId: runtime.roundId, messageId, botId: member.botId,
+          content: '', done: false, activity: 'connecting' });
         const request = {
           baseUrl,
           apiKey,
@@ -813,11 +809,13 @@ export class ConversationService {
             : result.error,
           elapsedMs: result.elapsedMs,
         });
-      } catch {
+      } catch (error) {
         if (this.rounds.get(conversationId) !== runtime) return;
         this.finishMember(conversationId, member.botId, {
           status: controller.signal.aborted ? 'stopped' : 'failed',
-          error: language === 'zh' ? '请求未完成，请重试。' : 'The request did not complete. Please retry.',
+          error: controller.signal.aborted ? (language === 'zh' ? '已被停止' : 'stopped')
+            : error instanceof BotCredentialError ? error.message
+            : language === 'zh' ? '请求未完成，请重试。' : 'The request did not complete. Please retry.',
         });
       }
     });
