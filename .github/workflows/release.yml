@@ -1,9 +1,7 @@
 name: Build desktop release
 
 on:
-  push:
-    tags:
-      - 'v*.*.*'
+  # Normal releases upload the locally verified packages. Cloud rebuilds are opt-in.
   workflow_dispatch:
     inputs:
       tag:

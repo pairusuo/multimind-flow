@@ -10,8 +10,6 @@ const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 
 const windowsPackageScript = fs.readFileSync(path.join(root, 'scripts', 'package-windows.mjs'), 'utf8');
 
 const workflowRules = [
-  'tags:',
-  "- 'v*.*.*'",
   'workflow_dispatch:',
   'contents: write',
   'npm audit --registry=https://registry.npmjs.org --audit-level=high',
@@ -29,6 +27,8 @@ const workflowRules = [
 for (const rule of workflowRules) {
   assert.ok(workflow.includes(rule), `Missing release workflow rule: ${rule}`);
 }
+
+assert.ok(!/^  push:/m.test(workflow), 'Tag pushes must not rebuild locally verified release packages.');
 
 assert.equal(
   workflow.match(/retention-days: 1/g)?.length,
@@ -50,11 +50,11 @@ assert.ok(
 );
 assert.ok(
   packageJson.scripts['package:mac'].includes('--publish never'),
-  'macOS packaging must leave GitHub publishing to the release job.',
+  'macOS packaging must finish local validation before publishing.',
 );
 assert.ok(
   windowsPackageScript.includes("'--publish', 'never'"),
-  'Windows packaging must leave GitHub publishing to the release job.',
+  'Windows packaging must finish local validation before publishing.',
 );
 
 console.log('GitHub Actions release workflow policy test passed.');

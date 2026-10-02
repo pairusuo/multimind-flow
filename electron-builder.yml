@@ -30,19 +30,10 @@ mac:
   identity: null
 
 dmg:
-  iconSize: 128
+  # Keep the default background and icon positions together. A background image
+  # determines the Finder window size, overriding a custom window size.
+  iconSize: 96
   iconTextSize: 14
-  window:
-    width: 720
-    height: 440
-  contents:
-    - x: 200
-      y: 250
-      type: file
-    - x: 520
-      y: 250
-      type: link
-      path: /Applications
 
 win:
   icon: build/icon.ico

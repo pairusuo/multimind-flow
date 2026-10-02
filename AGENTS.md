@@ -949,6 +949,10 @@ interface StoreSchema {
 
 ## 打包配置（electron-builder.yml）
 
+- 发布顺序：本地打包、验证安装包、发布同一份产物；禁止用云端重建包替换已验证的本地包。
+- Mac 与 Windows 必须使用相同版本号；发布前运行 `npm run verify:release`，确认两端包内版本和更新信息一致。
+- 发布完成后，本地 `release` 只保留最新版本的安装包及配套校验、更新文件。
+
 ```yaml
 appId: com.multimind.app
 productName: MultiMind Flow
